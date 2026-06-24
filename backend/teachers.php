@@ -9,7 +9,7 @@ function flzest_teachers_page(): void
 	processTeacherCsvFile();
 	handleTeacherDeletion();
 
-	$teachers = FlzEstTeacher::get_all(order_by: 'name');
+	$teachers = FlzEstTeacher::get_all_by( order_by: 'name' );
 	$csvFile = createCsv($teachers, 'teachers.csv', "Geschlecht(m/f); Name; Vorname; Email\n");
 
 	include( plugin_dir_path( __FILE__ ) . '../templates/teachers.php' );

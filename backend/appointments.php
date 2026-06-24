@@ -142,7 +142,7 @@ function processAppointmentsCsvFile(): array|null {
 
 function createAppointments(): void {
 	$slots = getAppointmentsSlots();
-	$teachers = FlzEstTeacher::get_all();
+	$teachers = FlzEstTeacher::get_all_by();
 	foreach ( $teachers as $teacher ) {
 		$teacher->createTeachersAppointments($slots);
 	}
@@ -174,7 +174,7 @@ function flzest_appointments_page(): void {
 
 	processAppointmentForm();
 	// show appointment table
-	$appointments = flzEstAppointment::get_all();
+	$appointments = flzEstAppointment::get_all_by();
 
 	
 	$csvFile = createCsv($appointments, 'appointments.csv', "Name Lehrer; Vorname Lehrer; Email Lehrer; Beginn; Ende; Name Eltern; Vorname Eltern; Email Eltern; Name Schüler:in; Klasse Schüler:in; bestätigt\n");
@@ -190,4 +190,3 @@ function empty_appointment( int $appointment_id ) {
 	$appointment->save();
 	echo "<script>alert('Termin erfolgreich geleert!');</script>";
 }
-

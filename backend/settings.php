@@ -12,6 +12,6 @@ function flzest_settings_page(): void
 			$setting->save();
 		}
 	}
-	$settings = FlzEstSetting::get_all();
+	$settings = FlzEstSetting::get_all_by();
 	include( plugin_dir_path( __FILE__ ) . '../templates/settings.php' );
 }

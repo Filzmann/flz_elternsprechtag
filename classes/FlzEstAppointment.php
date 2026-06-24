@@ -74,14 +74,12 @@ class flzEstAppointment extends FlzWpdbObject
 		$timestamp  = strtotime( $date." ".$start);
 
 
-		//$start is unix timestamp for $this->start
-		$where="start = {$timestamp} and teacher_id = {$teacher->id}";
-		$result = static::get_by_where( $where );
-        	if ( $result ) {
-        		return static::createObjectFromResult( $result );
-        	} else {
-        		return null;
-        	}
+		return static::get_by_fields(
+			[
+				'start'      => (int) $timestamp,
+				'teacher_id' => (int) $teacher->id,
+			]
+		);
 	}
 
 	/**

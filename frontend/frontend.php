@@ -97,10 +97,12 @@ function sendMails( FlzEstAppointment $selected ): void {
  * @throws ReflectionException
  */
 function getUnbookedAppointmentsByTeacherId($teacher_id): array {
-
-	$where = "teacher_id = " . $teacher_id;
-	$where.= " AND parent_id IS NULL";
-	return flzEstAppointment::get_all( where: $where );
+	return flzEstAppointment::get_all_by(
+		[
+			'teacher_id' => absint( $teacher_id ),
+			'parent_id'  => null,
+		]
+	);
 }
 /**
  * @throws ReflectionException
@@ -156,7 +158,7 @@ function select(array $options, string $name='', $submit=true, $selected=0): str
 function step1($selected): string {
 	$out = '<form method="post">';
 	$out.= select(
-		options: FlzEstTeacher::get_all(),
+		options: FlzEstTeacher::get_all_by(),
 		name: "teacher",
 		selected: $selected->teacher?$selected->teacher->id:0
 	);
