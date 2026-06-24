@@ -10,7 +10,7 @@ function flzest_teachers_page(): void
 	handleTeacherDeletion();
 
 	$teachers = FlzEstTeacher::get_all_by( order_by: 'name' );
-	$csvFile = createCsv($teachers, 'teachers.csv', "Geschlecht(m/f); Name; Vorname; Email\n");
+	$csvFile = flz_wpdb_objects_create_csv($teachers, 'teachers.csv', "Geschlecht(m/f); Name; Vorname; Email\n");
 
 	include( plugin_dir_path( __FILE__ ) . '../templates/teachers.php' );
 }
@@ -35,7 +35,7 @@ function processTeacherForm(): void
 	}
 
 	$teacher = new FlzEstTeacher();
-	$teacher->assignPostData($_POST);
+	$teacher->assignPostData( $_POST, [ 'name', 'firstName', 'gender', 'email' ] );
 	$teacher->save();
 }
 

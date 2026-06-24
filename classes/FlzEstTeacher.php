@@ -141,7 +141,6 @@ class FlzEstTeacher extends FlzPerson
 					getAppointmentsSlots()
 					: $slots
 			):$slots;
-		//debug($this,"der neue Teacher");
 		foreach ( $slots as $slot ) {
 			$data = [
 				'start' => $slot['start'],
@@ -158,7 +157,6 @@ class FlzEstTeacher extends FlzPerson
 		$teachersId=$wpdb->insert_id;
 		//echo "TeachersId: $teachersId";
 		$teacher=FlzEstTeacher::get_by_id($teachersId);
-		//debug($teacher, "im afterInsert");
 		$teacher->createTeachersAppointments();
 	}
 }

@@ -34,9 +34,9 @@ class FlzEstSetting extends FlzWpdbObject {
 		$setting->save();
 	}
 	public static function get_value_by_name( string $name ): string {
-		global $wpdb;
-		$setting = $wpdb->get_row( "SELECT * FROM " . static::table_name() . " WHERE name = '$name'" );
-		return $setting->value;
+		$setting = static::get_by_fields( [ 'name' => sanitize_text_field( $name ) ] );
+
+		return $setting === null ? '' : (string) $setting->value;
 	}
 
 	protected function prepareDataForSaving(): array {

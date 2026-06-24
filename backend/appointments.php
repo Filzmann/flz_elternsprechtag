@@ -20,7 +20,10 @@ function processAppointmentForm(): void
 	$appointment->parent=$appointment->parent?:new FlzEstParent([]);
 
 	if( countFilledFieldsInArray($_POST['parent']) > 0){
-		$appointment->parent->assignPostData($_POST['parent']);
+		$appointment->parent->assignPostData(
+			$_POST['parent'],
+			[ 'name', 'firstName', 'gender', 'email', 'studentName', 'studentClass', 'gdprChecked' ]
+		);
 		$appointment->parent->save();
 	}
 	else
@@ -35,7 +38,6 @@ function processAppointmentForm(): void
 function countFilledFieldsInArray($array): int {
 	$count=0;
 	foreach ( $array as $value ) {
-		//debug($value);
 		if ( !empty(trim($value)) ) {
 			$count++;
 		}
@@ -52,7 +54,6 @@ function getSelectedAppointment(): FlzEstAppointment
 	else $appointment= new FlzEstAppointment([]);
 
 	$appointment->parent=$appointment->parent?:new FlzEstParent([]);
-	//debug($appointment,"get selected");
 	return $appointment;
 
 }
@@ -121,7 +122,6 @@ function processAppointmentsCsvFile(): array|null {
 
 				}
 				$appointment->parent=$parent;
-				//debug($appointment);
 				$appointment->isConfirmed=true;
 				$appointment->save();
 
@@ -177,7 +177,7 @@ function flzest_appointments_page(): void {
 	$appointments = flzEstAppointment::get_all_by();
 
 	
-	$csvFile = createCsv($appointments, 'appointments.csv', "Name Lehrer; Vorname Lehrer; Email Lehrer; Beginn; Ende; Name Eltern; Vorname Eltern; Email Eltern; Name Schüler:in; Klasse Schüler:in; bestätigt\n");
+	$csvFile = flz_wpdb_objects_create_csv($appointments, 'appointments.csv', "Name Lehrer; Vorname Lehrer; Email Lehrer; Beginn; Ende; Name Eltern; Vorname Eltern; Email Eltern; Name Schüler:in; Klasse Schüler:in; bestätigt\n");
 	include( plugin_dir_path( __FILE__ ) . '../templates/appointments.php' );
 }
 

@@ -121,7 +121,10 @@ function setAppointment( $selected ): flzEstAppointment {
 
 function setParent( $selected ): flzEstAppointment {
 	$parent=$selected->parent??new FlzEstParent();
-	$parent->assignPostData( $_POST["parent"] );
+	$parent->assignPostData(
+		$_POST["parent"],
+		[ 'name', 'firstName', 'gender', 'email', 'studentName', 'studentClass', 'gdprChecked' ]
+	);
 	$selected->parent=$parent;
 	return $selected;
 }
