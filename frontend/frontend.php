@@ -1,5 +1,8 @@
 <?php
 
+// Exception-Texte sind interne Logdaten; HTML-Escaping erfolgt erst an der UI-Grenze.
+// phpcs:disable WordPress.Security.EscapeOutput.ExceptionNotEscaped
+
 use JetBrains\PhpStorm\NoReturn;
 //require_once(plugin_dir_path(__FILE__) .'..\classes\FlzEstAppointment.php' );
 
@@ -7,44 +10,91 @@ use JetBrains\PhpStorm\NoReturn;
  * @throws ReflectionException
  */
 function flzest_probeunterricht_form( $atts ): false|string {
+	$frontend_notice = '';
+	try {
+		$nextEST = FlzEstSetting::get_value_by_name( 'NextParentsDay' );
+		if ( isset( $_GET['appointment_id'], $_GET['token'] ) ) {
+			$appointment = FlzEstAppointment::get_by_id( absint( wp_unslash( $_GET['appointment_id'] ) ) );
+			if ( ! $appointment instanceof FlzEstAppointment ) {
+				$frontend_notice = '<p class="flz-est-error">Der Bestätigungslink ist ungültig.</p>';
+			} else {
+				$frontend_notice = $appointment->activate(
+					sanitize_text_field( wp_unslash( $_GET['token'] ) )
+				);
+			}
+		}
 
-	$nextEST          = FlzEstSetting::get_value_by_name( "NextParentsDay" );
-	// aktivierungslink geklickt
-	if (isset($_GET['appointment_id']) && isset($_GET['token'])) {
+		$request_method = isset( $_SERVER['REQUEST_METHOD'] )
+			? sanitize_key( wp_unslash( $_SERVER['REQUEST_METHOD'] ) )
+			: '';
+		if ( 'POST' === $request_method ) {
+			if (
+				! isset( $_POST['flzest_nonce'] )
+				|| ! wp_verify_nonce(
+					sanitize_text_field( wp_unslash( $_POST['flzest_nonce'] ) ),
+					'flzest_book_appointment'
+				)
+			) {
+				throw new RuntimeException( 'Die Nonce-Prüfung der Elternsprechtagsbuchung ist fehlgeschlagen.' );
+			}
+		}
 
-		$appointment=FlzEstAppointment::get_by_id(intval($_GET['appointment_id']));
-		echo $appointment->activate(sanitize_text_field($_GET['token']));
+		$selected_id = isset( $_POST['selected'] ) ? absint( wp_unslash( $_POST['selected'] ) ) : 0;
+		$selected = $selected_id > 0
+			? FlzEstAppointment::get_by_id( $selected_id )
+			: new FlzEstAppointment( array() );
+		if ( ! $selected instanceof FlzEstAppointment ) {
+			throw new UnexpectedValueException( 'Der ausgewählte Elternsprechtagstermin wurde nicht gefunden.' );
+		}
+
+		if ( isset( $_POST['teacher'] ) ) {
+			$teacher = FlzEstTeacher::get_by_id( absint( wp_unslash( $_POST['teacher'] ) ) );
+			if ( ! $teacher instanceof FlzEstTeacher ) {
+				throw new UnexpectedValueException( 'Die ausgewählte Lehrkraft wurde nicht gefunden.' );
+			}
+			$selected->teacher = $teacher;
+		}
+
+		if ( isset( $_POST['appointment'] ) ) {
+			$selected = setAppointment( $selected, absint( wp_unslash( $_POST['appointment'] ) ) );
+		}
+		if ( isset( $_POST['parent'] ) ) {
+			$parent_data = map_deep( wp_unslash( $_POST['parent'] ), 'sanitize_text_field' );
+			if ( ! is_array( $parent_data ) ) {
+				throw new UnexpectedValueException( 'Die Elternangaben besitzen kein gültiges Array-Format.' );
+			}
+			$selected = setParent( $selected, $parent_data );
+		}
+
+		if ( empty( $selected->errors() ) ) {
+			$selected->confirmationToken = wp_generate_password( 48, false, false );
+			$selected->confirmationExpiration = time() + 2 * DAY_IN_SECONDS;
+			flz_wpdb_objects\FlzWpdbTransaction::run(
+				static function () use ( $selected ): void {
+					$selected->parent->save();
+					$selected->save();
+				},
+				'Speichern einer Elternsprechtagsbuchung mit Elternangaben'
+			);
+
+			try {
+				sendMails( $selected );
+				redirectToThankYouPage( $atts );
+			} catch ( Throwable $mail_error ) {
+				flzest_log_error( $mail_error, 'Versenden der Buchungs-E-Mails nach gespeicherter Terminbuchung' );
+				return '<p class="flz-est-error">Der Termin wurde gespeichert, aber mindestens eine E-Mail konnte nicht versendet werden. Bitte kontaktieren Sie die Schule.</p>';
+			}
+		}
+	} catch ( Throwable $error ) {
+		flzest_log_error( $error, 'Verarbeiten der öffentlichen Elternsprechtagsseite' );
+		return '<p class="flz-est-error">Die Anfrage konnte wegen eines technischen Fehlers nicht verarbeitet werden. Bitte später erneut versuchen.</p>';
 	}
-
-	$selected = isset($_POST["selected"])?unserialize( base64_decode($_POST["selected"])) : new FlzEstAppointment([]);
-
-	if ( isset( $_POST["teacher"] ) )
-	{
-		$teacher=FlzEstTeacher::get_by_id( intval( $_POST["teacher"] ));
-		$selected->teacher=$teacher;
-	}
-
-
-	if ( isset( $_POST["appointment"] ) ) $selected = setAppointment( $selected );
-	if ( isset( $_POST["parent"] ) ) $selected = setParent( $selected );
-
-	if ( empty($selected->errors()) ) {
-
-		// Generiere einen eindeutigen Token
-		$selected->confirmationToken = md5(uniqid());
-		// Speichere den Token und das Ablaufdatum in der Datenbank
-		$selected->confirmationExpiration = strtotime('+48 hours');
-		$selected->parent->save();
-		$selected->save();
-		sendMails($selected);
-		redirectToThankYouPage( $atts );
-	}
-
 
 	ob_start();
-	include( plugin_dir_path( __FILE__ ) . '../templates/frontend-form.php' );
+	echo wp_kses_post( $frontend_notice );
+	include plugin_dir_path( __FILE__ ) . '../templates/frontend-form.php';
 
-	return ob_get_clean();
+	return (string) ob_get_clean();
 }
 
 function sendMails( FlzEstAppointment $selected ): void {
@@ -72,7 +122,7 @@ function sendMails( FlzEstAppointment $selected ): void {
 
 	//echo $teachers_message."<hr>";
 	// Send the email
-	wp_mail($teacherEmail, 'Elternsprechtag', $teachers_message, $headers);
+	$teacher_mail_sent = wp_mail($teacherEmail, 'Elternsprechtag', $teachers_message, $headers);
 
 
 	// Baue den Aktivierungslink
@@ -90,7 +140,20 @@ function sendMails( FlzEstAppointment $selected ): void {
 	$parents_message.= "Beste Grüße";
 	//echo $parents_message."<hr>";
 	// Send the email
-	wp_mail($parentEmail, 'Elternsprechtag', $parents_message, $headers);
+	$parent_mail_sent = wp_mail($parentEmail, 'Elternsprechtag', $parents_message, $headers);
+	if ( ! $teacher_mail_sent || ! $parent_mail_sent ) {
+		$failed = array();
+		if ( ! $teacher_mail_sent ) {
+			$failed[] = 'Lehrkraft';
+		}
+		if ( ! $parent_mail_sent ) {
+			$failed[] = 'Elternteil';
+		}
+		throw flzest_operation_error(
+			new RuntimeException( 'wp_mail() meldete einen Fehler für: ' . implode( ', ', $failed ) ),
+			'Senden der Elternsprechtags-E-Mails für Termin-ID ' . (string) $selected->id
+		);
+	}
 }
 
 /**
@@ -107,22 +170,23 @@ function getUnbookedAppointmentsByTeacherId($teacher_id): array {
 /**
  * @throws ReflectionException
  */
-function setAppointment( $selected ): flzEstAppointment {
+function setAppointment( $selected, int $selected_appointment_id ): flzEstAppointment {
 
-	$selected_appointment_id = intval( $_POST["appointment"] );
 	// if change of teacher or appointment after parent data is already given
 	$parent=$selected->parent??null;
 	$selected  = flzEstAppointment::get_by_id( $selected_appointment_id );
-
+	if ( ! $selected instanceof FlzEstAppointment ) {
+		throw new UnexpectedValueException( 'Der ausgewählte Elternsprechtagstermin wurde nicht gefunden.' );
+	}
 	$selected->parent=$parent;
 	return $selected;
 }
 
 
-function setParent( $selected ): flzEstAppointment {
+function setParent( $selected, array $parent_data ): flzEstAppointment {
 	$parent=$selected->parent??new FlzEstParent();
 	$parent->assignPostData(
-		$_POST["parent"],
+		$parent_data,
 		[ 'name', 'firstName', 'gender', 'email', 'studentName', 'studentClass', 'gdprChecked' ]
 	);
 	$selected->parent=$parent;
@@ -132,7 +196,9 @@ function setParent( $selected ): flzEstAppointment {
 #[NoReturn] function redirectToThankYouPage( $atts ): void {
 	$thank_you_page_id  = intval( $atts['danke'] );
 	$thank_you_page_url = get_permalink( $thank_you_page_id );
-	wp_redirect( $thank_you_page_url );
+	if ( ! is_string( $thank_you_page_url ) || ! wp_safe_redirect( $thank_you_page_url ) ) {
+		throw new RuntimeException( 'Die Weiterleitung zur Danke-Seite ist fehlgeschlagen.' );
+	}
 	exit;
 }
 function select(array $options, string $name='', $submit=true, $selected=0): string {
@@ -160,6 +226,7 @@ function select(array $options, string $name='', $submit=true, $selected=0): str
 }
 function step1($selected): string {
 	$out = '<form method="post">';
+	$out .= wp_nonce_field( 'flzest_book_appointment', 'flzest_nonce', true, false );
 	$out.= select(
 		options: FlzEstTeacher::get_all_by(),
 		name: "teacher",
@@ -169,8 +236,8 @@ function step1($selected): string {
 		$out.=step2($selected);
 	else
 		$out.="Wählen Sie eine Lehrkraft aus!";
-	$selected4post=base64_encode(serialize($selected));
-	$out.="<input type='hidden' name='selected' id='elected' value='$selected4post'>";
+	$selected4post = $selected->id ? (int) $selected->id : 0;
+	$out .= "<input type='hidden' name='selected' id='selected' value='" . esc_attr( $selected4post ) . "'>";
 	$out.='</form>';
 	return $out;
 }

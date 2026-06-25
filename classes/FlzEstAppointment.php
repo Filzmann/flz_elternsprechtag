@@ -1,5 +1,6 @@
 <?php
 use flz_wpdb_objects\FlzWpdbObject;
+use flz_wpdb_objects\FlzWpdbObjectsException;
 
 require_once( "FlzEstTeacher.php" );
 require_once( "FlzEstEstParent.php" );
@@ -72,7 +73,12 @@ class flzEstAppointment extends FlzWpdbObject
 
 		$date=FlzEstSetting::get_value_by_name("NextParentsDay");
 		$timestamp  = strtotime( $date." ".$start);
-
+		if ( $timestamp === false ) {
+			throw FlzWpdbObjectsException::invalid_model_state(
+				static::class,
+				'Datum und Startzeit konnten nicht in einen Zeitstempel umgewandelt werden.'
+			);
+		}
 
 		return static::get_by_fields(
 			[
@@ -90,6 +96,12 @@ class flzEstAppointment extends FlzWpdbObject
 	 * @return array The prepared data for saving.
 	 */
 	protected function prepareDataForSaving(): array {
+		if ( $this->teacher === null || $this->teacher->id === null || $this->start === null || $this->end === null ) {
+			throw FlzWpdbObjectsException::invalid_model_state(
+				static::class,
+				'Lehrkraft, Beginn und Ende müssen vor dem Speichern gesetzt sein.'
+			);
+		}
 		return [
 			'start' => $this->start,
 			'end' => $this->end,
@@ -133,9 +145,14 @@ class flzEstAppointment extends FlzWpdbObject
 
 	public function activate($token): string
 	{
-		if($this->confirmationToken===$token)
+		$token_valid = is_string( $token )
+			&& $this->confirmationToken !== null
+			&& hash_equals( $this->confirmationToken, $token );
+		if ( $token_valid && $this->confirmationExpiration !== null && $this->confirmationExpiration >= time() )
 		{
 			$this->isConfirmed=true;
+			$this->confirmationToken = null;
+			$this->confirmationExpiration = 0;
 			$this->save();
 			return "<div style='font-size: 2em; background-color:lawngreen;'>Der Termin wurde bestätigt. Sie können das Fenster jetzt schließen!</div>";
 		}

@@ -18,6 +18,7 @@ register_deactivation_hook( __FILE__, 'flz_est_elternsprechtag_deactivate' );
 
 require_once(WP_PLUGIN_DIR . '/flz_wpdb_objects/FlzWpdbObject.php');
 require_once(WP_PLUGIN_DIR . '/flz_wpdb_objects/FlzPerson.php');
+require_once plugin_dir_path(__FILE__) . 'error-handling.php';
 
 
 

@@ -1,13 +1,26 @@
 <?php
 
+// Exception-Texte sind interne Logdaten; HTML-Escaping erfolgt erst an der UI-Grenze.
+// phpcs:disable WordPress.Security.EscapeOutput.ExceptionNotEscaped
+// Alle POST-Pfade laufen durch flzest_assert_admin_request(); der Sniff erkennt die zentrale Nonce-Prüfung nicht.
+// phpcs:disable WordPress.Security.NonceVerification.Missing
 
 // Funktion zur Anzeige der appointments-Seite im Backend
 const SECONDS_IN_MINUTE = 60;
 
 function resetAppointments(): void {
-	flzEstAppointment::truncate_table();
-	FlzEstParent::truncate_table( true );
-	createAppointments();
+	flz_wpdb_objects\FlzWpdbTransaction::run(
+		static function (): void {
+			foreach ( flzEstAppointment::get_all_by() as $appointment ) {
+				$appointment->delete();
+			}
+			foreach ( FlzEstParent::get_all_by() as $parent ) {
+				$parent->delete();
+			}
+			createAppointments();
+		},
+		'Zurücksetzen aller Elternsprechtagstermine'
+	);
 }
 function processAppointmentForm(): void
 {
@@ -15,24 +28,34 @@ function processAppointmentForm(): void
 	if (!$isFormSubmitted) {
 		return;
 	}
-	$id=$_POST['id'];
+	$id = isset( $_POST['id'] ) ? absint( wp_unslash( $_POST['id'] ) ) : 0;
 	$appointment = FlzEstAppointment::get_by_id($id);
+	if ( ! $appointment instanceof FlzEstAppointment ) {
+		throw new UnexpectedValueException( 'Der zu bearbeitende Termin wurde nicht gefunden.' );
+	}
 	$appointment->parent=$appointment->parent?:new FlzEstParent([]);
 
-	if( countFilledFieldsInArray($_POST['parent']) > 0){
-		$appointment->parent->assignPostData(
-			$_POST['parent'],
-			[ 'name', 'firstName', 'gender', 'email', 'studentName', 'studentClass', 'gdprChecked' ]
-		);
-		$appointment->parent->save();
-	}
-	else
-	{
-		if(isset($appointment->parent->id))
-			$appointment->parent->delete();
-		$appointment->parent = null;
-	}
-	$appointment->save();
+	$parent_data = isset( $_POST['parent'] )
+		? map_deep( wp_unslash( $_POST['parent'] ), 'sanitize_text_field' )
+		: array();
+	flz_wpdb_objects\FlzWpdbTransaction::run(
+		static function () use ( $appointment, $parent_data ): void {
+			if ( countFilledFieldsInArray( $parent_data ) > 0 ) {
+				$appointment->parent->assignPostData(
+					$parent_data,
+					array( 'name', 'firstName', 'gender', 'email', 'studentName', 'studentClass', 'gdprChecked' )
+				);
+				$appointment->parent->save();
+			} else {
+				if ( isset( $appointment->parent->id ) ) {
+					$appointment->parent->delete();
+				}
+				$appointment->parent = null;
+			}
+			$appointment->save();
+		},
+		'Speichern eines Elternsprechtagstermins mit Elternangaben'
+	);
 }
 
 function countFilledFieldsInArray($array): int {
@@ -48,8 +71,11 @@ function getSelectedAppointment(): FlzEstAppointment
 {
 	if (isset( $_POST[ 'appointment_edit' ]))
 	{
-		$id = intval($_POST['appointment_id']);
+		$id = isset( $_POST['appointment_id'] ) ? absint( wp_unslash( $_POST['appointment_id'] ) ) : 0;
 		$appointment= FlzEstAppointment::get_by_id($id);
+		if ( ! $appointment instanceof FlzEstAppointment ) {
+			throw new UnexpectedValueException( 'Der ausgewählte Termin wurde nicht gefunden.' );
+		}
 	}
 	else $appointment= new FlzEstAppointment([]);
 
@@ -59,16 +85,17 @@ function getSelectedAppointment(): FlzEstAppointment
 }
 function processAppointmentsCsvFile(): array|null {
 	$unprocessedLines=array();
+	$fileHandle = null;
 
 	try {
 		$isFormSubmitted = isset($_POST['submit_csv']);
 		if (!$isFormSubmitted) {
 			return null;
 		}
-		if (isset($_FILES['appointments-csv']['tmp_name'])) {
-			$fileOriginalName = $_FILES['appointments-csv']['name'];
-			// sanitize the file input
-			$filePath = $_FILES['appointments-csv']['tmp_name'];
+			if (isset($_FILES['appointments-csv']['tmp_name'], $_FILES['appointments-csv']['name'])) {
+				$fileOriginalName = sanitize_file_name( wp_unslash( $_FILES['appointments-csv']['name'] ) );
+				// sanitize the file input
+				$filePath = sanitize_text_field( wp_unslash( $_FILES['appointments-csv']['tmp_name'] ) );
 			//verify if the file is a CSV file
 			if (pathinfo($fileOriginalName, PATHINFO_EXTENSION) != 'csv') {
 				throw new Exception('Das ist keine csv-Datei');
@@ -79,8 +106,14 @@ function processAppointmentsCsvFile(): array|null {
 				throw new Exception("Konnte die Datei nicht öffnen");
 			}
 			fgetcsv($fileHandle);
-			//read each line and make a new teacher object
+			$imports = array();
+			$reserved_appointment_ids = array();
 			while(($line = fgetcsv($fileHandle, separator: ';')) !== false) {
+					if ( count( $line ) < 4 ) {
+						$line['error'] = 'Die CSV-Zeile enthält weniger als vier Spalten.';
+						$unprocessedLines[] = $line;
+						continue;
+					}
 				// Assuming FlzEstTeachers accepts an array to create a new teacher
 
 				$teacher= FlzEstTeacher::get_by_email($line[0]);
@@ -106,35 +139,49 @@ function processAppointmentsCsvFile(): array|null {
 					$unprocessedLines[]=$line;
 					continue;
 				}
-				else{
-					$data=array(
+				if ( in_array( (int) $appointment->id, $reserved_appointment_ids, true ) ) {
+					$line['error'] = 'Dieser Slot kommt mehrfach in der CSV-Datei vor.';
+					$unprocessedLines[] = $line;
+					continue;
+				}
+				$reserved_appointment_ids[] = (int) $appointment->id;
+				$parent = new FlzEstParent(
+					array(
 						'studentName'=>$line[2],
 						'studentClass'=>$line[3],
 						'gdprChecked'=>true,
 						'name'=>'Vorbelegung Schule',
 						'firstName'=>'',
 						'email'=>'info@tagore-gymnasium.de'
-					);
-					$parent=new FlzEstParent(
-						$data
-					);
-					$parent->save();
-
-				}
-				$appointment->parent=$parent;
-				$appointment->isConfirmed=true;
-				$appointment->save();
-
+					)
+				);
+				$imports[] = array( 'parent' => $parent, 'appointment' => $appointment );
 			}
 
 			fclose($fileHandle);
+			$fileHandle = null;
+			flz_wpdb_objects\FlzWpdbTransaction::run(
+				static function () use ( $imports ): void {
+					foreach ( $imports as $import ) {
+						$parent = $import['parent'];
+						$appointment = $import['appointment'];
+						$parent->save();
+						$appointment->parent = $parent;
+						$appointment->isConfirmed = true;
+						$appointment->save();
+					}
+				},
+				'Importieren aller vorab belegten Elternsprechtagstermine'
+			);
 
 		} else {
 			throw new Exception("Keine Datei hochgeladen");
 		}
-	} catch (Exception $e) {
-		// Echoing the script tag with alert to show the error message
-		echo '<script>alert("'.$e->getMessage().'")</script>';
+	} catch (Throwable $error) {
+		if ( is_resource( $fileHandle ) ) {
+			fclose( $fileHandle );
+		}
+		throw flzest_operation_error( $error, 'Importieren der Elternsprechtagstermine aus CSV' );
 	}
 	return $unprocessedLines;
 }
@@ -151,13 +198,22 @@ function createAppointments(): void {
 
 
 function flzest_appointments_page(): void {
-	
+	try {
+		flzest_appointments_page_content();
+	} catch ( Throwable $error ) {
+		flzest_render_admin_error( $error, 'Anzeigen und Verarbeiten der Elternsprechtagstermine' );
+	}
+}
 
+function flzest_appointments_page_content(): void {
+	flzest_assert_admin_request();
 	if ( isset( $_POST['newEST'] ) ) {
 		resetAppointments();
 	}
 	if ( isset( $_POST['appointment_empty'] ) ) {
-		empty_appointment(intval($_POST['appointment_empty']['id']));
+		$empty_data = map_deep( wp_unslash( $_POST['appointment_empty'] ), 'sanitize_text_field' );
+		$appointment_id = is_array( $empty_data ) && isset( $empty_data['id'] ) ? absint( $empty_data['id'] ) : 0;
+		empty_appointment( $appointment_id );
 
 	}
 	$unprocessed=processAppointmentsCsvFile();
@@ -165,8 +221,9 @@ function flzest_appointments_page(): void {
 	{
 		echo "Folgende Datensätze konnten nicht verarbeitet werden:<br>";
 		echo"<textarea cols='100' rows='5'>";
-		foreach ($unprocessed as $line)
-			echo implode(";",$line)."\n";
+		foreach ($unprocessed as $line) {
+			echo esc_textarea( implode( ';', $line ) . "\n" );
+		}
 		echo"</textarea>";
 	}
 	$selected=getSelectedAppointment();
@@ -183,6 +240,9 @@ function flzest_appointments_page(): void {
 
 function empty_appointment( int $appointment_id ) {
 	$appointment = FlzEstAppointment::get_by_id( $appointment_id );
+	if ( ! $appointment instanceof FlzEstAppointment ) {
+		throw new UnexpectedValueException( 'Der zu leerende Termin wurde nicht gefunden.' );
+	}
 	$appointment->parent = null;
 	$appointment->isConfirmed = false;
 	$appointment->confirmationToken=null;

@@ -21,17 +21,23 @@ class FlzEstSetting extends FlzWpdbObject {
 	}
 
 	protected static function afterCreate(): void {
-		//insert defaults
-		$setting=new FlzEstSetting(array('name'=>"SlotLength", 'value'=>"20"));
-		$setting->save();
-		$setting=new FlzEstSetting(array('name'=>"NextParentsDay", 'value'=>"17.11.2023"));
-		$setting->save();
-		$setting=new FlzEstSetting(array('name'=>"ParentsDayBegin", 'value'=>"16:00"));
-		$setting->save();
-		$setting=new FlzEstSetting(array('name'=>"ParentsDayEnd", 'value'=>"20:00"));
-		$setting->save();
-		$setting=new FlzEstSetting(array('name'=>"TestMode", 'value'=>"1"));
-		$setting->save();
+		$defaults = array(
+			'SlotLength' => '20',
+			'NextParentsDay' => '17.11.2023',
+			'ParentsDayBegin' => '16:00',
+			'ParentsDayEnd' => '20:00',
+			'TestMode' => '1',
+		);
+		flz_wpdb_objects\FlzWpdbTransaction::run(
+			static function () use ( $defaults ): void {
+				foreach ( $defaults as $name => $value ) {
+					if ( static::get_by_fields( array( 'name' => $name ) ) === null ) {
+						( new FlzEstSetting( array( 'name' => $name, 'value' => $value ) ) )->save();
+					}
+				}
+			},
+			'Anlegen fehlender Elternsprechtags-Standardeinstellungen'
+		);
 	}
 	public static function get_value_by_name( string $name ): string {
 		$setting = static::get_by_fields( [ 'name' => sanitize_text_field( $name ) ] );

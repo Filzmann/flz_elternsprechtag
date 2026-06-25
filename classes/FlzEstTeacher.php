@@ -1,5 +1,7 @@
 <?php
 
+// Exception-Texte sind interne Logdaten; HTML-Escaping erfolgt erst an der UI-Grenze.
+// phpcs:disable WordPress.Security.EscapeOutput.ExceptionNotEscaped
 
 class FlzEstTeacher extends FlzPerson
 {
@@ -36,6 +38,9 @@ class FlzEstTeacher extends FlzPerson
 
 	protected static function afterCreate(): void {
 		//insert defaults
+		if ( static::count_by() > 0 ) {
+			return;
+		}
 
 		$example_teachers=[
 			["Frau", "Baganz", "ines.baganz@schule.berlin.de"],
@@ -113,16 +118,20 @@ class FlzEstTeacher extends FlzPerson
 			["Herr", "Danz", "d.danz@tagore-gymnasium.de"]
 		];
 
-		foreach ( $example_teachers as $example_teacher ) {
-			$data=array(
-				'name'=> $example_teacher[1],
-				'gender'=> $example_teacher[0]=="Herr"?"m":"f",
-				'email'=> $example_teacher[2]
-			);
-			$teacher=new FlzEstTeacher($data);
-			$teacher->save();
-
-		}
+		flz_wpdb_objects\FlzWpdbTransaction::run(
+			static function () use ( $example_teachers ): void {
+				foreach ( $example_teachers as $example_teacher ) {
+					$data=array(
+						'name'=> $example_teacher[1],
+						'gender'=> $example_teacher[0]=="Herr"?"m":"f",
+						'email'=> $example_teacher[2]
+					);
+					$teacher=new FlzEstTeacher($data);
+					$teacher->save();
+				}
+			},
+			'Anlegen der Standard-Lehrkräfte mit ihren Elternsprechtagsterminen'
+		);
 
 	}
 	public function getCsvLine(): string {
@@ -154,9 +163,21 @@ class FlzEstTeacher extends FlzPerson
 	}
 	protected static function afterInsert(): void {
 		global $wpdb;
-		$teachersId=$wpdb->insert_id;
+		$teachersId=(int) $wpdb->insert_id;
+		if ( $teachersId <= 0 ) {
+			throw flz_wpdb_objects\FlzWpdbObjectsException::invalid_model_state(
+				static::class,
+				'Nach dem Einfügen der Lehrkraft fehlt eine positive Insert-ID.'
+			);
+		}
 		//echo "TeachersId: $teachersId";
 		$teacher=FlzEstTeacher::get_by_id($teachersId);
+		if ( ! $teacher instanceof FlzEstTeacher ) {
+			throw flz_wpdb_objects\FlzWpdbObjectsException::invalid_model_state(
+				static::class,
+				'Die neu eingefügte Lehrkraft mit ID ' . $teachersId . ' konnte nicht erneut geladen werden.'
+			);
+		}
 		$teacher->createTeachersAppointments();
 	}
 }

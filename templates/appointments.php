@@ -32,15 +32,16 @@
 
         ?>
             <p>
-                Der nächste Elternsprechtag findet am <?php echo FlzEstSetting::get_value_by_name("NextParentsDay") ?>
-                von <?php echo FlzEstSetting::get_value_by_name("ParentsDayBegin") ?> Uhr
-                bis  <?php echo FlzEstSetting::get_value_by_name("ParentsDayEnd") ?> Uhr statt.
+	                Der nächste Elternsprechtag findet am <?php echo esc_html( FlzEstSetting::get_value_by_name( 'NextParentsDay' ) ); ?>
+	                von <?php echo esc_html( FlzEstSetting::get_value_by_name( 'ParentsDayBegin' ) ); ?> Uhr
+	                bis  <?php echo esc_html( FlzEstSetting::get_value_by_name( 'ParentsDayEnd' ) ); ?> Uhr statt.
             </p>
             <p>
                 Bitte überprüfen Sie diese Einstellungen im Bereich <a href="?page=flzest_settings">"Einstellungen"</a> und passen Sie diese ggf. an bevor Sie mit dem nächsten Schritt fortfahren.<br/>
                 Des Weiteren sollte die Liste der <a href="?page=flzest_teachers">Lehrer:innen</a> auf Vollständigkeit überprüft werden.
             </p>
             <form method="post">
+				<?php wp_nonce_field( 'flzest_admin_action' ); ?>
                 <input type="submit" name="newEST" id="newEST" value="Neuen Elternsprechtag vorbereiten. (Achtung, alle Buchungen werden zurückgesetzt)" onclick="confirm('Achtung! Sie sind dabei, alle Bookings zurückzusetzen. Ist das erwünscht?');" >
             </form>
             <div style="width: 50%; display: inline-block;  ">
@@ -58,32 +59,32 @@
                     <tbody  style="display:block; overflow: auto; height: 20em; width:600px;">
                     <?php foreach ( $appointments as $appointment ) : ?>
                         <tr style="width: 550px;">
-                            <td style="width:50px;"><?php echo date("H:i", $appointment->start)?></td>
-                            <td style="width:50px;"><?php echo date("H:i", $appointment->end)?></td>
+	                            <td style="width:50px;"><?php echo esc_html( date( 'H:i', $appointment->start ) ); ?></td>
+	                            <td style="width:50px;"><?php echo esc_html( date( 'H:i', $appointment->end ) ); ?></td>
 							
                             <td class="lehrkraft" style="width:100px;"><?php
 			if($appointment->teacher){
-                                echo $appointment->teacher->get_gender_as_anrede()." "
-                                     .$appointment->teacher->name; 
+	                                echo esc_html( $appointment->teacher->get_gender_as_anrede() . ' ' . $appointment->teacher->name );
 			}  ?>
                             </td>
                             <td style="width:200px;"><?php
 
                                 if(isset($appointment->parent)) {
-                                    echo $appointment->parent->name . ", ".
-                                        $appointment->parent->firstName . " "
-                                         ."(". $appointment->parent->studentName. " - "
-                                         . $appointment->parent->studentClass.")";
+	                                    echo esc_html( $appointment->parent->name . ', '
+	                                        . $appointment->parent->firstName . ' (' . $appointment->parent->studentName . ' - '
+	                                        . $appointment->parent->studentClass . ')' );
                                 }
                                 else echo "Freier Slot";?>
                             </td>
                             <td style="width:150px;">
                                 <form method="post" style="display: inline;">
-                                    <input type="hidden" name="appointment_empty[id]" value="<?php echo $appointment->id; ?>" />
+									<?php wp_nonce_field( 'flzest_admin_action' ); ?>
+	                                    <input type="hidden" name="appointment_empty[id]" value="<?php echo esc_attr( $appointment->id ); ?>" />
                                     <button type="submit">Leeren</button>
                                 </form>
                                 <form method="post" style="display: inline;">
-                                    <input type="hidden" name="appointment_id" value="<?php echo $appointment->id; ?>" />
+									<?php wp_nonce_field( 'flzest_admin_action' ); ?>
+	                                    <input type="hidden" name="appointment_id" value="<?php echo esc_attr( $appointment->id ); ?>" />
                                     <button type="submit" name="appointment_edit">Bearbeiten</button>
                                 </form>
                             </td>
@@ -93,52 +94,50 @@
                 </table>
 
             </div>
-               <?php if(isset($_POST['appointment_edit'])): ?>
+	               <?php if ( $selected->id ) : ?>
 
             <div style="width: 40%; display: inline-block; vertical-align: top; text-align: start;">
                 <h2>Buchung bearbeiten</h2>
-                Slot von <?php echo date("H:i", $selected->start)?>
-                bis <?php echo date("H:i", $selected->end)?> bei <?php
-			            echo $selected->teacher->get_gender_as_anrede()." "
-			                 .$selected->teacher->name;   ?>
+	                Slot von <?php echo esc_html( date( 'H:i', $selected->start ) ); ?>
+	                bis <?php echo esc_html( date( 'H:i', $selected->end ) ); ?> bei <?php
+			            echo esc_html( $selected->teacher->get_gender_as_anrede() . ' ' . $selected->teacher->name ); ?>
                    <?php
 
 			            if(isset($selected->parent)) {
-				            echo $selected->parent->name . ", ".
-				                 $selected->parent->firstName . " "
-				                 ."(". $selected->parent->studentName. " - "
-				                 . $selected->parent->studentClass.")";
+							echo esc_html( $selected->parent->name . ', ' . $selected->parent->firstName . ' ('
+								. $selected->parent->studentName . ' - ' . $selected->parent->studentClass . ')' );
 			            }
 			            else echo "Freier Slot";?>
 
                 <form method="post">
+					<?php wp_nonce_field( 'flzest_admin_action' ); ?>
 
-                    <input type="hidden" name="id" value="<?php echo $selected->id; ?>" />
+	                    <input type="hidden" name="id" value="<?php echo esc_attr( $selected->id ); ?>" />
                     <div class="form-field">
                         <label>Anrede:</label>
-                        <input type="radio" name="parent[gender]" id="m" value="m" <?php echo $selected->parent->gender=="m"?"checked":""; ?>><label for="m">Herr</label>
-                        <input type="radio" name="parent[gender]" id="f" value="f" <?php echo $selected->parent->gender=="f"?"checked":""; ?>><label for="f">Frau</label>
-                        <input type="radio" name="parent[gender]" id="d" value="d" <?php echo $selected->parent->gender==""?"checked":""; ?>><label for="d">keine Angabe</label>
+	                        <input type="radio" name="parent[gender]" id="m" value="m" <?php checked( $selected->parent->gender, 'm' ); ?>><label for="m">Herr</label>
+	                        <input type="radio" name="parent[gender]" id="f" value="f" <?php checked( $selected->parent->gender, 'f' ); ?>><label for="f">Frau</label>
+	                        <input type="radio" name="parent[gender]" id="d" value="d" <?php checked( $selected->parent->gender, '' ); ?>><label for="d">keine Angabe</label>
                     </div>
                     <div class="form-field">
                         <label for="parent[name]">Name:</label>
-                        <input type="text" name="parent[name]" id="parent[name]" value="<?php echo $selected->parent->name?>"  />
+	                        <input type="text" name="parent[name]" id="parent[name]" value="<?php echo esc_attr( $selected->parent->name ); ?>"  />
                     </div>
                     <div class="form-field">
                         <label for="parent[firstname]">Vorname:</label>
-                        <input type="text" name="parent[firstname]" id="parent[firstname]" value="<?php echo $selected->parent->firstName?>" />
+	                        <input type="text" name="parent[firstName]" id="parent[firstName]" value="<?php echo esc_attr( $selected->parent->firstName ); ?>" />
                     </div>
                     <div class="form-field">
                         <label for="parent[email]">Email:</label>
-                        <input type="email" name="parent[email]" id="parent[email]" value="<?php echo $selected->parent->email?>"  />
+	                        <input type="email" name="parent[email]" id="parent[email]" value="<?php echo esc_attr( $selected->parent->email ); ?>"  />
                     </div>
                     <div class="form-field">
                         <label for="parent[studentName]">Name Schüler*in:</label>
-                        <input type="text" name="parent[studentName]" id="parent[studentName]" value="<?php echo $selected->parent->studentName?>" />
+	                        <input type="text" name="parent[studentName]" id="parent[studentName]" value="<?php echo esc_attr( $selected->parent->studentName ); ?>" />
                     </div>
                     <div class="form-field">
                         <label for="parent[studentClass]">Klasse Schüler*in:</label>
-                        <input type="text" name="parent[studentClass]" id="parent[studentClass]" value="<?php echo $selected->parent->studentClass?>" />
+	                        <input type="text" name="parent[studentClass]" id="parent[studentClass]" value="<?php echo esc_attr( $selected->parent->studentClass ); ?>" />
                     </div>
                     <div class="form-field">
                         <button type="submit" name="submit">Speichern</button>
@@ -148,7 +147,7 @@
                    <?php endif;  ?>
             <div>
                 <h3>Buchungen Download (CSV-Datei)</h3>
-                <a href="<?php echo $csvFile; ?>">Download CSV-Datei </a>
+	                <a href="<?php echo esc_url( $csvFile ); ?>">Download CSV-Datei </a>
             </div>
             <div>
                 <h3>Termine Sammel-Upload (CSV-Datei)</h3>
@@ -157,6 +156,7 @@
                     +</code><br/>
                     Es bietet sich an, diese einfach vorher herunterzuladen und zu bearbeiten. </p>
                 <form method="post" enctype="multipart/form-data">
+					<?php wp_nonce_field( 'flzest_admin_action' ); ?>
                     <input type="file" name="appointments-csv" id="appointments-csv" accept=".csv">
                     <input type="submit" value="Upload" name="submit_csv">
                 </form>

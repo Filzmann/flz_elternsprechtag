@@ -2,12 +2,12 @@
 <div class="wrap">
     <p>
         Der nächste Elternsprechtag findet am <?php
-        echo $nextEST;
+	        echo esc_html( $nextEST );
         ?> statt.
     </p>
     <div style="display: inline-block; width: 100%; overflow: auto; ">
         <?php
-        echo step1($selected);
+	        echo wp_kses_post( step1( $selected ) );
         ?>
 
     </div>
