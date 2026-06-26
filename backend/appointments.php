@@ -67,48 +67,17 @@ function countFilledFieldsInArray($array): int {
 	}
 	return $count;
 }
-function getSelectedAppointment(): FlzEstAppointment
-{
-	if (isset( $_POST[ 'appointment_edit' ]))
-	{
-		$id = isset( $_POST['appointment_id'] ) ? absint( wp_unslash( $_POST['appointment_id'] ) ) : 0;
-		$appointment= FlzEstAppointment::get_by_id($id);
-		if ( ! $appointment instanceof FlzEstAppointment ) {
-			throw new UnexpectedValueException( 'Der ausgewählte Termin wurde nicht gefunden.' );
-		}
-	}
-	else $appointment= new FlzEstAppointment([]);
-
-	$appointment->parent=$appointment->parent?:new FlzEstParent([]);
-	return $appointment;
-
-}
 function processAppointmentsCsvFile(): array|null {
 	$unprocessedLines=array();
-	$fileHandle = null;
 
 	try {
 		$isFormSubmitted = isset($_POST['submit_csv']);
 		if (!$isFormSubmitted) {
 			return null;
 		}
-			if (isset($_FILES['appointments-csv']['tmp_name'], $_FILES['appointments-csv']['name'])) {
-				$fileOriginalName = sanitize_file_name( wp_unslash( $_FILES['appointments-csv']['name'] ) );
-				// sanitize the file input
-				$filePath = sanitize_text_field( wp_unslash( $_FILES['appointments-csv']['tmp_name'] ) );
-			//verify if the file is a CSV file
-			if (pathinfo($fileOriginalName, PATHINFO_EXTENSION) != 'csv') {
-				throw new Exception('Das ist keine csv-Datei');
-			}
-			//open the file
-			$fileHandle = fopen($filePath, 'r');
-			if (!$fileHandle) {
-				throw new Exception("Konnte die Datei nicht öffnen");
-			}
-			fgetcsv($fileHandle);
 			$imports = array();
 			$reserved_appointment_ids = array();
-			while(($line = fgetcsv($fileHandle, separator: ';')) !== false) {
+			foreach ( flz_wpdb_objects_read_uploaded_csv( 'appointments-csv', 'Importieren der Elternsprechtagstermine aus CSV' ) as $line ) {
 					if ( count( $line ) < 4 ) {
 						$line['error'] = 'Die CSV-Zeile enthält weniger als vier Spalten.';
 						$unprocessedLines[] = $line;
@@ -158,8 +127,6 @@ function processAppointmentsCsvFile(): array|null {
 				$imports[] = array( 'parent' => $parent, 'appointment' => $appointment );
 			}
 
-			fclose($fileHandle);
-			$fileHandle = null;
 			flz_wpdb_objects\FlzWpdbTransaction::run(
 				static function () use ( $imports ): void {
 					foreach ( $imports as $import ) {
@@ -174,13 +141,7 @@ function processAppointmentsCsvFile(): array|null {
 				'Importieren aller vorab belegten Elternsprechtagstermine'
 			);
 
-		} else {
-			throw new Exception("Keine Datei hochgeladen");
-		}
 	} catch (Throwable $error) {
-		if ( is_resource( $fileHandle ) ) {
-			fclose( $fileHandle );
-		}
 		throw flzest_operation_error( $error, 'Importieren der Elternsprechtagstermine aus CSV' );
 	}
 	return $unprocessedLines;
@@ -219,16 +180,8 @@ function flzest_appointments_page_content(): void {
 	$unprocessed=processAppointmentsCsvFile();
 	if($unprocessed)
 	{
-		echo "Folgende Datensätze konnten nicht verarbeitet werden:<br>";
-		echo"<textarea cols='100' rows='5'>";
-		foreach ($unprocessed as $line) {
-			echo esc_textarea( implode( ';', $line ) . "\n" );
-		}
-		echo"</textarea>";
+		echo flz_ui()->csv_unprocessed_notice( $unprocessed, array( 'name' => 'flzest_unprocessed_appointments' ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Renderer escaped die Komponente.
 	}
-	$selected=getSelectedAppointment();
-
-
 	processAppointmentForm();
 	// show appointment table
 	$appointments = flzEstAppointment::get_all_by();

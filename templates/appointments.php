@@ -1,170 +1,193 @@
 <script>
-    function filterLehrkraft() {
-        const input = document.getElementById("lehrkraftInput");
-        const filter = input.value.toUpperCase();
-        const table = document.getElementById("appointmentTable");
-        const tr = table.getElementsByTagName("tr");
+	function filterLehrkraft() {
+		const input = document.getElementById("lehrkraftInput");
+		const filter = input.value.toUpperCase();
+		const table = document.getElementById("appointmentTable");
+		const rows = table.querySelectorAll("tbody tr");
+		let showFollowingDetails = true;
 
-        for (let i = 0; i < tr.length; i++) {
-            let td = tr[i].getElementsByClassName("lehrkraft")[0];
-            if (td) {
-                let txtValue = td.textContent || td.innerText;
-                if (txtValue.toUpperCase().indexOf(filter) > -1) {
-                    tr[i].style.display = "";
-                } else {
-                    tr[i].style.display = "none";
-                }
-            }
-        }
-    }
+		rows.forEach((row) => {
+			const teacherCell = row.getElementsByClassName("lehrkraft")[0];
+
+			if (teacherCell) {
+				const txtValue = teacherCell.textContent || teacherCell.innerText;
+				showFollowingDetails = txtValue.toUpperCase().indexOf(filter) > -1;
+				row.style.display = showFollowingDetails ? "" : "none";
+				return;
+			}
+
+			if (row.classList.contains("flz-ui-editable-row__details")) {
+				row.style.display = showFollowingDetails ? "" : "none";
+			}
+		});
+	}
 </script>
 
+<?php
+$flzest_ui = flz_ui();
+$flzest_parent_gender_options = array(
+	'm' => 'Herr',
+	'f' => 'Frau',
+	''  => 'keine Angabe',
+);
+
+$flzest_appointment_row = static function ( FlzEstAppointment $appointment ) use ( $flzest_ui, $flzest_parent_gender_options ): string {
+	$teacher_label = $appointment->teacher
+		? trim( $appointment->teacher->get_gender_as_anrede() . ' ' . $appointment->teacher->name )
+		: '';
+	$parent = $appointment->parent ?? null;
+	$parent_summary = $parent
+		? trim( (string) $parent->name . ', ' . (string) $parent->firstName . ' (' . (string) $parent->studentName . ' - ' . (string) $parent->studentClass . ')' )
+		: 'Freier Slot';
+	$clear_action = '';
+
+	$clear_action .= $flzest_ui->action_form_button(
+		array(
+			'preset' => 'clear',
+			'label'  => 'Termin leeren',
+			'button' => array( 'type' => 'submit' ),
+			'method' => 'post',
+			'nonce'  => 'flzest_admin_action',
+			'hidden' => array( 'appointment_empty[id]' => $appointment->id ),
+		)
+	);
+
+	return $flzest_ui->editable_row(
+		array(
+			'id'    => 'flzest-appointment-' . (int) $appointment->id,
+			'form'  => array(
+				'method' => 'post',
+				'nonce'  => 'flzest_admin_action',
+				'hidden' => array( 'id' => $appointment->id ),
+			),
+			'cells' => array(
+				array( 'view' => date( 'H:i', $appointment->start ) ),
+				array( 'view' => date( 'H:i', $appointment->end ) ),
+				array(
+					'view'  => $teacher_label,
+					'attrs' => array( 'class' => 'lehrkraft' ),
+				),
+				array( 'view' => $parent_summary ),
+			),
+			'details' => array(
+				'label'  => 'Buchung bearbeiten',
+				'fields' => array(
+					array(
+						'type'    => 'select',
+						'name'    => 'parent[gender]',
+						'label'   => 'Anrede',
+						'value'   => $parent->gender ?? '',
+						'options' => $flzest_parent_gender_options,
+					),
+					array(
+						'type'  => 'text',
+						'name'  => 'parent[name]',
+						'label' => 'Name',
+						'value' => $parent->name ?? '',
+					),
+					array(
+						'type'  => 'text',
+						'name'  => 'parent[firstName]',
+						'label' => 'Vorname',
+						'value' => $parent->firstName ?? '',
+					),
+					array(
+						'type'         => 'email',
+						'name'         => 'parent[email]',
+						'label'        => 'E-Mail',
+						'value'        => $parent->email ?? '',
+						'autocomplete' => 'email',
+					),
+					array(
+						'type'  => 'text',
+						'name'  => 'parent[studentName]',
+						'label' => 'Name Schüler*in',
+						'value' => $parent->studentName ?? '',
+					),
+					array(
+						'type'  => 'text',
+						'name'  => 'parent[studentClass]',
+						'label' => 'Klasse Schüler*in',
+						'value' => $parent->studentClass ?? '',
+					),
+				),
+			),
+			'edit'  => array( 'label' => 'Termin bearbeiten' ),
+			'save'  => array(
+				'label' => 'Buchung speichern',
+				'attrs' => array( 'name' => 'submit' ),
+			),
+			'extra_actions' => $clear_action,
+		)
+	);
+};
+?>
 
 <div class="wrap">
-    <h1>Elternsprechtag</h1>
-    <div>
-        <h2>Neuen Elternsprechtag vorbereiten</h2>
-        <?php
-        $nextDate  =strtotime(FlzEstSetting::get_value_by_name("NextParentsDay"));
-        if ($nextDate <= strtotime("tomorrow"))
-            echo 'Zur Vorbereitung des nächsten Elternsprechtages definieren Sie bitte im <a href="?page=flzest_settings">Einstellungsbereich</a> ein Datum in der Zukunft!';
-        else{
-
-        ?>
-            <p>
-	                Der nächste Elternsprechtag findet am <?php echo esc_html( FlzEstSetting::get_value_by_name( 'NextParentsDay' ) ); ?>
-	                von <?php echo esc_html( FlzEstSetting::get_value_by_name( 'ParentsDayBegin' ) ); ?> Uhr
-	                bis  <?php echo esc_html( FlzEstSetting::get_value_by_name( 'ParentsDayEnd' ) ); ?> Uhr statt.
-            </p>
-            <p>
-                Bitte überprüfen Sie diese Einstellungen im Bereich <a href="?page=flzest_settings">"Einstellungen"</a> und passen Sie diese ggf. an bevor Sie mit dem nächsten Schritt fortfahren.<br/>
-                Des Weiteren sollte die Liste der <a href="?page=flzest_teachers">Lehrer:innen</a> auf Vollständigkeit überprüft werden.
-            </p>
-            <form method="post">
-				<?php wp_nonce_field( 'flzest_admin_action' ); ?>
-                <input type="submit" name="newEST" id="newEST" value="Neuen Elternsprechtag vorbereiten. (Achtung, alle Buchungen werden zurückgesetzt)" onclick="confirm('Achtung! Sie sind dabei, alle Bookings zurückzusetzen. Ist das erwünscht?');" >
-            </form>
-            <div style="width: 50%; display: inline-block;  ">
-                <table id="appointmentTable" border="1" style="width:100%;">
-                    <thead style="display:block; width: 100%;">
-                        <tr style="width: 100%;">
-                            <th style="width:50px;">Beginn</th>
-                            <th style="width:50px;">Ende</th>
-                            <th style="width:100px;"><input type="text" id="lehrkraftInput" onkeyup="filterLehrkraft()" placeholder="Lehrkraft" style="width:95px;">
-                            </th>
-                            <th style="width:200px;">Elternteil</th>
-                            <th style="width:150px;">Aktionen</th>
-                        </tr>
-                    </thead>
-                    <tbody  style="display:block; overflow: auto; height: 20em; width:600px;">
-                    <?php foreach ( $appointments as $appointment ) : ?>
-                        <tr style="width: 550px;">
-	                            <td style="width:50px;"><?php echo esc_html( date( 'H:i', $appointment->start ) ); ?></td>
-	                            <td style="width:50px;"><?php echo esc_html( date( 'H:i', $appointment->end ) ); ?></td>
-							
-                            <td class="lehrkraft" style="width:100px;"><?php
-			if($appointment->teacher){
-	                                echo esc_html( $appointment->teacher->get_gender_as_anrede() . ' ' . $appointment->teacher->name );
-			}  ?>
-                            </td>
-                            <td style="width:200px;"><?php
-
-                                if(isset($appointment->parent)) {
-	                                    echo esc_html( $appointment->parent->name . ', '
-	                                        . $appointment->parent->firstName . ' (' . $appointment->parent->studentName . ' - '
-	                                        . $appointment->parent->studentClass . ')' );
-                                }
-                                else echo "Freier Slot";?>
-                            </td>
-                            <td style="width:150px;">
-                                <form method="post" style="display: inline;">
-									<?php wp_nonce_field( 'flzest_admin_action' ); ?>
-	                                    <input type="hidden" name="appointment_empty[id]" value="<?php echo esc_attr( $appointment->id ); ?>" />
-                                    <button type="submit">Leeren</button>
-                                </form>
-                                <form method="post" style="display: inline;">
-									<?php wp_nonce_field( 'flzest_admin_action' ); ?>
-	                                    <input type="hidden" name="appointment_id" value="<?php echo esc_attr( $appointment->id ); ?>" />
-                                    <button type="submit" name="appointment_edit">Bearbeiten</button>
-                                </form>
-                            </td>
-                        </tr>
-                    <?php endforeach; ?>
-                    </tbody>
-                </table>
-
-            </div>
-	               <?php if ( $selected->id ) : ?>
-
-            <div style="width: 40%; display: inline-block; vertical-align: top; text-align: start;">
-                <h2>Buchung bearbeiten</h2>
-	                Slot von <?php echo esc_html( date( 'H:i', $selected->start ) ); ?>
-	                bis <?php echo esc_html( date( 'H:i', $selected->end ) ); ?> bei <?php
-			            echo esc_html( $selected->teacher->get_gender_as_anrede() . ' ' . $selected->teacher->name ); ?>
-                   <?php
-
-			            if(isset($selected->parent)) {
-							echo esc_html( $selected->parent->name . ', ' . $selected->parent->firstName . ' ('
-								. $selected->parent->studentName . ' - ' . $selected->parent->studentClass . ')' );
-			            }
-			            else echo "Freier Slot";?>
-
-                <form method="post">
-					<?php wp_nonce_field( 'flzest_admin_action' ); ?>
-
-	                    <input type="hidden" name="id" value="<?php echo esc_attr( $selected->id ); ?>" />
-                    <div class="form-field">
-                        <label>Anrede:</label>
-	                        <input type="radio" name="parent[gender]" id="m" value="m" <?php checked( $selected->parent->gender, 'm' ); ?>><label for="m">Herr</label>
-	                        <input type="radio" name="parent[gender]" id="f" value="f" <?php checked( $selected->parent->gender, 'f' ); ?>><label for="f">Frau</label>
-	                        <input type="radio" name="parent[gender]" id="d" value="d" <?php checked( $selected->parent->gender, '' ); ?>><label for="d">keine Angabe</label>
-                    </div>
-                    <div class="form-field">
-                        <label for="parent[name]">Name:</label>
-	                        <input type="text" name="parent[name]" id="parent[name]" value="<?php echo esc_attr( $selected->parent->name ); ?>"  />
-                    </div>
-                    <div class="form-field">
-                        <label for="parent[firstname]">Vorname:</label>
-	                        <input type="text" name="parent[firstName]" id="parent[firstName]" value="<?php echo esc_attr( $selected->parent->firstName ); ?>" />
-                    </div>
-                    <div class="form-field">
-                        <label for="parent[email]">Email:</label>
-	                        <input type="email" name="parent[email]" id="parent[email]" value="<?php echo esc_attr( $selected->parent->email ); ?>"  />
-                    </div>
-                    <div class="form-field">
-                        <label for="parent[studentName]">Name Schüler*in:</label>
-	                        <input type="text" name="parent[studentName]" id="parent[studentName]" value="<?php echo esc_attr( $selected->parent->studentName ); ?>" />
-                    </div>
-                    <div class="form-field">
-                        <label for="parent[studentClass]">Klasse Schüler*in:</label>
-	                        <input type="text" name="parent[studentClass]" id="parent[studentClass]" value="<?php echo esc_attr( $selected->parent->studentClass ); ?>" />
-                    </div>
-                    <div class="form-field">
-                        <button type="submit" name="submit">Speichern</button>
-                    </div>
-                </form>
-            </div>
-                   <?php endif;  ?>
-            <div>
-                <h3>Buchungen Download (CSV-Datei)</h3>
-	                <a href="<?php echo esc_url( $csvFile ); ?>">Download CSV-Datei </a>
-            </div>
-            <div>
-                <h3>Termine Sammel-Upload (CSV-Datei)</h3>
-                <p>Achtung, die eindeutige identifikation der Lehrer*innen geschieht über die E-Mail-Adresse. Die Datei muss in folgendem Format sein: <br>
-                    <code>Email Lehrer; Beginn; Name Schüler:in; Klasse Schüler:in
-                    +</code><br/>
-                    Es bietet sich an, diese einfach vorher herunterzuladen und zu bearbeiten. </p>
-                <form method="post" enctype="multipart/form-data">
-					<?php wp_nonce_field( 'flzest_admin_action' ); ?>
-                    <input type="file" name="appointments-csv" id="appointments-csv" accept=".csv">
-                    <input type="submit" value="Upload" name="submit_csv">
-                </form>
-
-            </div>
-        <?php
-
-        } //else
-        ?>
-    </div>
+	<h1>Elternsprechtag</h1>
+	<div>
+		<h2>Neuen Elternsprechtag vorbereiten</h2>
+		<?php
+		$nextDate = strtotime( FlzEstSetting::get_value_by_name( 'NextParentsDay' ) );
+		if ( $nextDate <= strtotime( 'tomorrow' ) ) {
+			echo 'Zur Vorbereitung des nächsten Elternsprechtages definieren Sie bitte im <a href="?page=flzest_settings">Einstellungsbereich</a> ein Datum in der Zukunft!';
+		} else {
+			?>
+			<p>
+				Der nächste Elternsprechtag findet am <?php echo esc_html( flz_ui_format_date( FlzEstSetting::get_value_by_name( 'NextParentsDay' ), FlzEstSetting::get_value_by_name( 'NextParentsDay' ) ) ); ?>
+				von <?php echo esc_html( FlzEstSetting::get_value_by_name( 'ParentsDayBegin' ) ); ?> Uhr
+				bis <?php echo esc_html( FlzEstSetting::get_value_by_name( 'ParentsDayEnd' ) ); ?> Uhr statt.
+			</p>
+			<p>
+				Bitte überprüfen Sie diese Einstellungen im Bereich <a href="?page=flzest_settings">"Einstellungen"</a> und passen Sie diese ggf. an bevor Sie mit dem nächsten Schritt fortfahren.<br/>
+				Des Weiteren sollte die Liste der <a href="?page=flzest_teachers">Lehrer:innen</a> auf Vollständigkeit überprüft werden.
+			</p>
+			<?php echo $flzest_ui->form_start( array( 'method' => 'post', 'nonce' => 'flzest_admin_action' ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Renderer escaped das Formular. ?>
+				<?php echo $flzest_ui->button_reset( array( 'label' => 'Neuen Elternsprechtag vorbereiten', 'confirm' => 'Achtung! Sie sind dabei, alle Buchungen zurückzusetzen. Ist das erwünscht?', 'attrs' => array( 'name' => 'newEST', 'id' => 'newEST' ) ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Renderer escaped die Komponente. ?>
+			<?php echo $flzest_ui->form_end(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Renderer escaped das Formularende. ?>
+			<div style="width: 100%; overflow: auto; max-height: 28em;">
+				<table id="appointmentTable" border="1" style="width:100%;">
+					<thead>
+						<tr>
+							<th>Beginn</th>
+							<th>Ende</th>
+							<th>
+								<?php echo $flzest_ui->input( 'text', array( 'name' => 'lehrkraft_filter', 'id' => 'lehrkraftInput', 'label' => 'Lehrkraft filtern', 'placeholder' => 'Lehrkraft', 'attrs' => array( 'onkeyup' => 'filterLehrkraft()' ) ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Renderer escaped die Komponente. ?>
+							</th>
+							<th>Elternteil</th>
+							<th>Aktionen</th>
+						</tr>
+					</thead>
+					<tbody>
+						<?php foreach ( $appointments as $appointment ) : ?>
+							<?php echo $flzest_appointment_row( $appointment ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Renderer escaped die Tabellenzeile. ?>
+						<?php endforeach; ?>
+					</tbody>
+				</table>
+			</div>
+			<?php
+			// phpcs:disable WordPress.Security.EscapeOutput.OutputNotEscaped -- Renderer escaped die CSV-Komponente inklusive URL, Labels und Formularfeldern.
+			echo $flzest_ui->csv_panel(
+				array(
+					'title'       => 'Buchungen und Termine CSV',
+					'description' => 'Download der Buchungen oder Sammel-Upload zur Vorbelegung. Lehrkräfte werden über ihre E-Mail-Adresse erkannt.',
+					'format'      => 'Email Lehrer; Beginn; Name Schüler:in; Klasse Schüler:in',
+					'export'      => array(
+						'href'  => $csvFile,
+						'label' => 'Buchungen-CSV herunterladen',
+					),
+					'upload'      => array(
+						'nonce'        => 'flzest_admin_action',
+						'file_name'    => 'appointments-csv',
+						'file_id'      => 'appointments-csv',
+						'button_label' => 'Termine-CSV hochladen',
+					),
+				)
+			);
+			// phpcs:enable WordPress.Security.EscapeOutput.OutputNotEscaped
+			?>
+			<?php
+		}
+		?>
+	</div>
 </div>

@@ -154,9 +154,9 @@ class flzEstAppointment extends FlzWpdbObject
 			$this->confirmationToken = null;
 			$this->confirmationExpiration = 0;
 			$this->save();
-			return "<div style='font-size: 2em; background-color:lawngreen;'>Der Termin wurde bestätigt. Sie können das Fenster jetzt schließen!</div>";
+			return flz_ui()->notice( 'Der Termin wurde bestätigt. Sie können das Fenster jetzt schließen!', 'success' );
 		}
-		else return "<div style='font-size: 2em; background-color:red;'>Fehler bei der Bestätigung. Bitte Link nochmal testen oder Termin erneut registrieren. </div>";
+		else return flz_ui()->notice( 'Fehler bei der Bestätigung. Bitte Link nochmal testen oder Termin erneut registrieren.', 'error' );
 	}
 
 }

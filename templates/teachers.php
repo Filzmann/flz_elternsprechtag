@@ -1,85 +1,134 @@
+<?php
+$flzest_ui = flz_ui();
+$flzest_gender_options = array(
+	'm' => 'Herr',
+	'f' => 'Frau',
+	''  => 'keine Angabe',
+);
 
+$flzest_teacher_row = static function ( FlzEstTeacher $teacher ) use ( $flzest_ui, $flzest_gender_options ): string {
+	$is_new = empty( $teacher->id );
+	$row_id = $is_new ? 'flzest-teacher-new' : 'flzest-teacher-' . (int) $teacher->id;
+	$delete_action = '';
+
+	if ( ! $is_new ) {
+		$delete_action .= $flzest_ui->action_form_button(
+			array(
+				'preset' => 'delete',
+				'label'  => 'Lehrkraft löschen',
+				'method' => 'post',
+				'nonce'  => 'flzest_admin_action',
+				'hidden' => array( 'teacher_delete' => $teacher->id ),
+			)
+		);
+	}
+
+	return $flzest_ui->editable_row(
+		array(
+			'id'         => $row_id,
+			'new'        => $is_new,
+			'row_hidden' => $is_new,
+			'form'       => array(
+				'method' => 'post',
+				'nonce'  => 'flzest_admin_action',
+				'hidden' => array( 'id' => $teacher->id ?? '' ),
+			),
+			'cells'      => array(
+				array(
+					'view'  => $teacher->get_gender_as_anrede(),
+					'field' => array(
+						'type'    => 'select',
+						'name'    => 'gender',
+						'label'   => 'Anrede',
+						'value'   => $teacher->gender ?? '',
+						'options' => $flzest_gender_options,
+					),
+				),
+				array(
+					'view'  => $teacher->name ?? '',
+					'field' => array(
+						'type'     => 'text',
+						'name'     => 'name',
+						'label'    => 'Name',
+						'value'    => $teacher->name ?? '',
+						'required' => true,
+					),
+				),
+				array(
+					'view'  => $teacher->firstName ?? '',
+					'field' => array(
+						'type'  => 'text',
+						'name'  => 'firstName',
+						'label' => 'Vorname',
+						'value' => $teacher->firstName ?? '',
+					),
+				),
+				array(
+					'view'  => $teacher->email ?? '',
+					'field' => array(
+						'type'         => 'email',
+						'name'         => 'email',
+						'label'        => 'E-Mail',
+						'value'        => $teacher->email ?? '',
+						'required'     => true,
+						'autocomplete' => 'email',
+					),
+				),
+			),
+			'edit'       => array( 'label' => 'Lehrkraft bearbeiten' ),
+			'save'       => array(
+				'label' => 'Lehrkraft speichern',
+				'attrs' => array( 'name' => 'submit' ),
+			),
+			'extra_actions' => $delete_action,
+		)
+	);
+};
+?>
 <div class="wrap">
-    <h1>Lehrpersonal bearbeiten</h1>
-    <div style="display: inline-block; width: 50%; overflow: auto; height: 20em;">
+	<h1>Lehrpersonal bearbeiten</h1>
+	<div style="width: 100%; overflow: auto; max-height: 24em;">
+		<p>
+			<?php echo $flzest_ui->button_new( array( 'label' => 'Neue Lehrkraft anlegen', 'attrs' => array( 'data-flz-ui-show-new-row' => 'flzest-teacher-new' ) ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Renderer escaped die Komponente. ?>
+		</p>
 
-        <table>
-            <tr>
-                <th>Anrede</th>
-                <th>Name</th>
-                <th>Vorname</th>
-                <th>Email</th>
-                <th>Aktionen</th>
-            </tr>
-			<?php
-            foreach ( $teachers as $teacher ) : ?>
-
-                <tr>
-	                    <td><?php echo esc_html( $teacher->get_gender_as_anrede() ); ?></td>
-	                    <td><?php echo esc_html( $teacher->name ); ?></td>
-	                    <td><?php echo esc_html( $teacher->firstName ); ?></td>
-	                    <td><?php echo esc_html( $teacher->email ); ?></td>
-                    <td>
-                        <form method="post" style="display: inline;">
-							<?php wp_nonce_field( 'flzest_admin_action' ); ?>
-	                            <input type="hidden" name="teacher_delete" value="<?php echo esc_attr( $teacher->id ); ?>" />
-                            <button type="submit">Löschen</button>
-                        </form>
-                        <form method="post" style="display: inline;">
-							<?php wp_nonce_field( 'flzest_admin_action' ); ?>
-	                            <input type="hidden" name="teacher_id" value="<?php echo esc_attr( $teacher->id ); ?>" />
-                            <button type="submit" name="teacher_edit">Bearbeiten</button>
-                        </form>
-                    </td>
-                </tr>
-			<?php endforeach; ?>
-        </table>
-
-    </div>
-    <div style="width: 40%; display: inline-block; vertical-align: top; text-align: start;">
-        <h2>Lehrer hinzufügen/bearbeiten</h2>
-
-        <form method="post">
-			<?php wp_nonce_field( 'flzest_admin_action' ); ?>
-
-	            <input type="hidden" name="id" value="<?php echo esc_attr( $selected->id ); ?>" />
-            <div class="form-field">
-                <label>Anrede:</label>
-	                <input type="radio" name="gender" id="m" value="m" <?php checked( $selected->gender, 'm' ); ?>><label for="m">Herr</label>
-	                <input type="radio" name="gender" id="f" value="f" <?php checked( $selected->gender, 'f' ); ?>><label for="f">Frau</label>
-	                <input type="radio" name="gender" id="d" value="d" <?php checked( $selected->gender, '' ); ?>><label for="d">keine Angabe</label>
-            </div>
-            <div class="form-field">
-                <label for="name">Name:</label>
-	                <input type="text" name="name" id="name" value="<?php echo esc_attr( $selected->name ); ?>" required />
-            </div>
-            <div class="form-field">
-                <label for="firstName">Vorname:</label>
-	                <input type="text" name="firstName" id="firstName" value="<?php echo esc_attr( $selected->firstName ); ?>" />
-            </div>
-            <div class="form-field">
-                <label for="email">Email:</label>
-	                <input type="email" name="email" id="email" value="<?php echo esc_attr( $selected->email ); ?>" required />
-            </div>
-            <div class="form-field">
-                <button type="submit" name="submit">Speichern</button>
-            </div>
-        </form>
-    </div>
-    <div>
-        <h3>Lehrer*innen Download (CSV-Datei)</h3>
-	        <a href="<?php echo esc_url( $csvFile ); ?>">Download CSV-Datei </a>
-    </div>
-    <div>
-        <h3>Lehrer*innen Sammel-Upload (CSV-Datei)</h3>
-        <p>Achtung, alle bereits vorhandenen Lehrer*innen werden gelöscht. Die Datei muss im selben Format sein, wie die csv-Datei, die man hier herunterladen kann. <br>
-            Es bietet sich an, diese einfach vorher herunterzuladen und zu bearbeiten. </p>
-        <form method="post" enctype="multipart/form-data">
-			<?php wp_nonce_field( 'flzest_admin_action' ); ?>
-            <input type="file" name="teacher-csv" id="teacher-csv" accept=".csv">
-            <input type="submit" value="Upload" name="submit_csv">
-        </form>
-
-    </div>
-
+		<table>
+			<thead>
+				<tr>
+					<th>Anrede</th>
+					<th>Name</th>
+					<th>Vorname</th>
+					<th>Email</th>
+					<th>Aktionen</th>
+				</tr>
+			</thead>
+			<tbody>
+				<?php echo $flzest_teacher_row( new FlzEstTeacher( array() ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Renderer escaped die Tabellenzeile. ?>
+				<?php foreach ( $teachers as $teacher ) : ?>
+					<?php echo $flzest_teacher_row( $teacher ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Renderer escaped die Tabellenzeile. ?>
+				<?php endforeach; ?>
+			</tbody>
+		</table>
+	</div>
+	<?php
+	// phpcs:disable WordPress.Security.EscapeOutput.OutputNotEscaped -- Renderer escaped die CSV-Komponente inklusive URL, Labels und Formularfeldern.
+	echo $flzest_ui->csv_panel(
+		array(
+			'title'       => 'Lehrkräfte CSV',
+			'description' => 'Download als Vorlage oder Sammel-Upload. Achtung: Beim Upload werden alle bereits vorhandenen Lehrer*innen ersetzt.',
+			'format'      => 'Geschlecht(m/f); Name; Vorname; Email',
+			'export'      => array(
+				'href'  => $csvFile,
+				'label' => 'Lehrkräfte-CSV herunterladen',
+			),
+			'upload'      => array(
+				'nonce'        => 'flzest_admin_action',
+				'file_name'    => 'teacher-csv',
+				'file_id'      => 'teacher-csv',
+				'button_label' => 'Lehrkräfte-CSV hochladen',
+			),
+		)
+	);
+	// phpcs:enable WordPress.Security.EscapeOutput.OutputNotEscaped
+	?>
 </div>

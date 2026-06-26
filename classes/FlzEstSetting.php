@@ -23,7 +23,7 @@ class FlzEstSetting extends FlzWpdbObject {
 	protected static function afterCreate(): void {
 		$defaults = array(
 			'SlotLength' => '20',
-			'NextParentsDay' => '17.11.2023',
+			'NextParentsDay' => '17.11.23',
 			'ParentsDayBegin' => '16:00',
 			'ParentsDayEnd' => '20:00',
 			'TestMode' => '1',
