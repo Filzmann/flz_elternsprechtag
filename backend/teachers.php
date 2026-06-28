@@ -24,9 +24,9 @@ function flzest_teachers_page_content(): void
 	handleTeacherDeletion();
 
 	$teachers = FlzEstTeacher::get_all_by( order_by: 'name' );
-	$teacher_search = flzest_admin_filter_text( 'teacher_search' );
-	$teacher_orderby = flzest_admin_orderby( array( 'gender', 'name', 'firstName', 'email' ), 'name' );
-	$teacher_order = flzest_admin_order();
+	$teacher_search = flz_ui_admin_filter_text( 'teacher_search' );
+	$teacher_orderby = flz_ui_admin_orderby( array( 'gender', 'name', 'firstName', 'email' ), 'name' );
+	$teacher_order = flz_ui_admin_order();
 	$teacher_base_args = array( 'page' => 'flzest_teachers' );
 	if ( '' !== $teacher_search ) {
 		$teacher_base_args['teacher_search'] = $teacher_search;
@@ -51,15 +51,27 @@ function flzest_teachers_page_content(): void
 				'email'     => array( (string) $left->email, (string) $right->email ),
 			);
 
-			$result = flzest_admin_compare( $values[ $teacher_orderby ][0], $values[ $teacher_orderby ][1], $teacher_order );
+			$result = flz_ui_admin_compare( $values[ $teacher_orderby ][0], $values[ $teacher_orderby ][1], $teacher_order );
 			if ( 0 === $result ) {
-				return flzest_admin_compare( (string) $left->name, (string) $right->name, 'asc' );
+				return flz_ui_admin_compare( (string) $left->name, (string) $right->name, 'asc' );
 			}
 
 			return $result;
 		}
 	);
-	$csvFile = flz_wpdb_objects_create_csv($teachers, 'teachers.csv', "Geschlecht(m/f); Name; Vorname; Email\n");
+	$csvFile = flz_wpdb_objects_create_csv_file(
+		array( 'Geschlecht(m/f)', 'Name', 'Vorname', 'Email' ),
+		array_map(
+			static fn( FlzEstTeacher $teacher ): array => array(
+				$teacher->gender,
+				$teacher->name,
+				$teacher->firstName,
+				$teacher->email,
+			),
+			$teachers
+		),
+		'teachers.csv'
+	);
 
 	include( plugin_dir_path( __FILE__ ) . '../templates/teachers.php' );
 }

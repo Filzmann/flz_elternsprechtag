@@ -4,7 +4,6 @@
 // phpcs:disable WordPress.Security.EscapeOutput.ExceptionNotEscaped
 
 use JetBrains\PhpStorm\NoReturn;
-//require_once(plugin_dir_path(__FILE__) .'..\classes\FlzEstAppointment.php' );
 
 /**
  * @throws ReflectionException
@@ -201,202 +200,68 @@ function setParent( $selected, array $parent_data ): flzEstAppointment {
 	}
 	exit;
 }
-function select(array $options, string $name='', $submit=true, $selected=0): string {
-
-
-	$select_options = array();
-	foreach ( $options as $option )
-	{
-		$select_options[ (string) $option->id ] = $option->get_gender_as_anrede() . ' ' . $option->name;
+/**
+ * Rendert ein Elternsprechtags-Frontend-Template als String.
+ *
+ * @param array<string,mixed> $vars Template-Variablen.
+ */
+function flzest_get_frontend_template( string $template, array $vars = array() ): string {
+	$template = trim( str_replace( array( '..', '\\' ), '', $template ), '/' );
+	$file     = plugin_dir_path( __FILE__ ) . '../templates/' . $template . '.php';
+	if ( ! is_readable( $file ) ) {
+		throw new RuntimeException( 'Das Elternsprechtags-Template "' . $template . '" wurde nicht gefunden.' );
 	}
-	return flz_ui()->field( array(
-		'type'        => 'select',
-		'name'        => $name,
-		'id'          => $name,
-		'label'       => 'Lehrkraft',
-		'value'       => (string) $selected,
-		'placeholder' => '--- bitte auswählen ---',
-		'options'     => $select_options,
-		'attrs'       => $submit ? array( 'onchange' => 'this.form.submit();' ) : array(),
-	) );
-}
-function step1($selected): string {
-	$ui = flz_ui();
-	$out = $ui->form_start( array( 'method' => 'post', 'nonce' => 'flzest_book_appointment', 'nonce_name' => 'flzest_nonce' ) );
-	$out.= select(
-		options: FlzEstTeacher::get_all_by(),
-		name: "teacher",
-		selected: $selected->teacher?$selected->teacher->id:0
-	);
-	if ( $selected->teacher )
-		$out.=step2($selected);
-	else
-		$out.="Wählen Sie eine Lehrkraft aus!";
-	$selected4post = $selected->id ? (int) $selected->id : 0;
-	$out .= $ui->hidden( 'selected', $selected4post, array( 'id' => 'selected' ) );
-	$out .= $ui->form_end();
-	return $out;
+
+	ob_start();
+	extract( $vars, EXTR_SKIP );
+	include $file;
+
+	return (string) ob_get_clean();
 }
 
-function step2($selected): string {
-	$appointments=getUnbookedAppointmentsByTeacherId($selected->teacher->id);
-	$out = "<div class='button-group'>
-        <h3>Mögliche Termine
-            bei ";
-	$out .= esc_html( $selected->teacher->get_gender_as_anrede() . ' ' . $selected->teacher->name );
-	$out .= '</h3>';
-	if(empty($appointments)) $out.='Leider sind alle Termine schon ausgebucht!';
-	else
-	{
-		foreach ( $appointments as $appointment ) {
-			$out .= flz_ui()->button( array(
-				'label'    => date( 'H:i', $appointment->start ),
-				'type'     => 'submit',
-				'variant'  => 'secondary',
-				'icon'     => 'clock',
-				'icon_alt' => 'Termin um ' . date( 'H:i', $appointment->start ) . ' auswählen',
-				'attrs'    => array(
-					'name'  => 'appointment',
-					'id'    => 'appointment-' . (int) $appointment->id,
-					'value' => (string) $appointment->id,
-				),
-			) );
-		}
-		$out.="</div>";
-		if ( $selected->id )
-		{
-			$out.=step3($selected);
+/**
+ * @param array<int,FlzEstTeacher> $teachers
+ * @return array<string,string>
+ */
+function flzest_teacher_options( array $teachers ): array {
+	$options = array();
+	foreach ( $teachers as $teacher ) {
+		if ( $teacher instanceof FlzEstTeacher && ! empty( $teacher->id ) ) {
+			$options[ (string) $teacher->id ] = $teacher->get_gender_as_anrede() . ' ' . $teacher->name;
 		}
 	}
-	return $out;
-}
-function step3($selected): string {
-	$errors=$selected->errors()??[];
-	$out = "<p>Für Ihren Termin am ";
-	$out .= esc_html( flz_ui_format_date( $selected->start ) );
-	$out.=" um ";
-	$out .= esc_html( date( "H:i", $selected->start ) );
 
-	$out .= ' bei ' . esc_html( $selected->teacher->get_gender_as_anrede() . ' ' . $selected->teacher->name );
-	$out.=" benötigen wir noch folgende Daten von Ihnen:</p>";
-	$out.= '
-        <div class="form-wrap">';
-
-	$options = array(
-		"" => "keine Angabe/divers",
-		"f" => "Frau",
-		"m" => "Herr"
-	);
-	$selectedOption = $selected->parent?$selected->parent->gender:''; // Selected option which could be '', 'f', or 'm'
-	$out.=createSelectFieldWithLabel(
-		'parent[gender]',
-		'parent[gender]',
-		'Anrede',
-		$options,
-		$selectedOption
-	);
-
-
-	$out .= createInputFieldWithLabel(
-		'text',
-		'parent[name]',
-		'parent[name]',
-		'Name',
-		$selected->parent->name??'',
-		in_array('NO_NAME', $errors),
-		'Bitte geben Sie Ihren Namen ein'
-	);
-
-	$out .= createInputFieldWithLabel(
-		'text',
-		'parent[firstName]',
-		'parent[firstName]',
-		'Vorname',
-		$selected->parent->firstName??''
-	);
-	$out .= createInputFieldWithLabel(
-		'email',
-		'parent[email]',
-		'parent[email]',
-		'Email',
-		$selected->parent->email??'',
-		in_array('NO_EMAIL', $errors),
-		'Bitte geben Sie Ihre E-Mail ein'
-	);
-
-	$out .= createInputFieldWithLabel(
-		'text',
-		'parent[studentName]',
-		'parent[studentName]',
-		'Name Schüler*in',
-		$selected->parent->studentName??'',
-		in_array('NO_STUDENTS_NAME', $errors),
-		'Bitte geben Sie den Namen des Kindes ein'
-	);
-
-
-	$out .= createInputFieldWithLabel(
-		'text',
-		'parent[studentClass]',
-		'parent[studentClass]',
-		'Klasse Schüler*in',
-		$selected->parent->studentClass??'',
-		in_array('NO_STUDENTS_CLASS', $errors),
-		'Bitte geben Sie die Klasse ihres Kindes ein'
-	);
-
-	if(in_array('NO_GDPR', $errors)) $out.= flz_ui()->notice( 'Bitte bestätigen Sie die Datenschutzerklärung.', 'error' );
-
-	$out .= flz_ui()->field( array(
-		'type'    => 'checkbox',
-		'name'    => 'parent[gdprChecked]',
-		'id'      => 'parent_gdprChecked',
-		'label'   => 'Ich habe die Datenschutzerklärung (einschließlich der angegebenen Löschfristen) zur Kenntnis genommen.',
-		'checked' => $selected->parent && $selected->parent->gdprChecked === 'on',
-	) );
-	$out.='
-			<p>
-			Ich stimme zu, dass meine Angaben und Daten zur Beantwortung meiner Anfrage elektronisch gespeichert werden.
-			Die Einwilligung kann jederzeit per E-Mail an technik@tagore-gymnasium.de widerrufen werden.
-			Von einer Übersendung sensibler Daten (zum Beispiel Gesundheitsdaten) bitten wir abzusehen
-			</p>
-        </div>';
-	$out .= flz_ui()->button( array(
-		'label'    => 'Termin verbindlich buchen',
-		'type'     => 'submit',
-		'variant'  => 'primary',
-		'icon'     => 'check',
-		'icon_alt' => 'Termin verbindlich buchen',
-		'attrs'    => array(
-			'name' => 'save',
-			'id'   => 'save',
-		),
-	) );
-
-
-	return $out;
+	return $options;
 }
 
-function createInputFieldWithLabel(string $inputType, string $inputName, string $inputId, string $labelText, string $inputValue = '', bool $isRequired = false, string $errorMsg = ''): string {
-	$out = $isRequired ? flz_ui()->notice( $errorMsg, 'error' ) : '';
-	$out .= flz_ui()->input( $inputType, array(
-		'name'  => $inputName,
-		'id'    => str_replace( array( '[', ']' ), '_', $inputId ),
-		'label' => $labelText,
-		'value' => $inputValue,
-	) );
-	return $out;
+function flzest_render_step1( FlzEstAppointment $selected ): string {
+	return flzest_get_frontend_template(
+		'frontend-step1',
+		array(
+			'selected' => $selected,
+			'teachers' => FlzEstTeacher::get_all_by(),
+		)
+	);
 }
 
-function createSelectFieldWithLabel($fieldName, $fieldId, $labelText, $options, $selectedOption = null): string {
-	return flz_ui()->field( array(
-		'type'    => 'select',
-		'name'    => $fieldName,
-		'id'      => str_replace( array( '[', ']' ), '_', $fieldId ),
-		'label'   => $labelText,
-		'value'   => (string) $selectedOption,
-		'options' => $options,
-	) );
+function flzest_render_step2( FlzEstAppointment $selected ): string {
+	return flzest_get_frontend_template(
+		'frontend-step2',
+		array(
+			'selected' => $selected,
+			'appointments' => getUnbookedAppointmentsByTeacherId( $selected->teacher->id ),
+		)
+	);
+}
+
+function flzest_render_step3( FlzEstAppointment $selected ): string {
+	return flzest_get_frontend_template(
+		'frontend-step3',
+		array(
+			'selected' => $selected,
+			'errors' => $selected->errors() ?? array(),
+		)
+	);
 }
 // Hinzufügen des Formulars im Frontend
 add_shortcode( 'flzest', 'flzest_probeunterricht_form' );

@@ -83,8 +83,6 @@ function processAppointmentsCsvFile(): array|null {
 						$unprocessedLines[] = $line;
 						continue;
 					}
-				// Assuming FlzEstTeachers accepts an array to create a new teacher
-
 				$teacher= FlzEstTeacher::get_by_email($line[0]);
 
 				if(!$teacher)
@@ -185,13 +183,13 @@ function flzest_appointments_page_content(): void {
 	processAppointmentForm();
 	// show appointment table
 	$appointments = flzEstAppointment::get_all_by();
-	$appointment_teacher_filter = flzest_admin_filter_text( 'teacher_filter' );
+	$appointment_teacher_filter = flz_ui_admin_filter_text( 'teacher_filter' );
 	$appointment_booking_filter = isset( $_GET['booking_filter'] ) ? sanitize_key( wp_unslash( $_GET['booking_filter'] ) ) : 'all';
 	if ( ! in_array( $appointment_booking_filter, array( 'all', 'booked', 'free' ), true ) ) {
 		$appointment_booking_filter = 'all';
 	}
-	$appointment_orderby = flzest_admin_orderby( array( 'start', 'end', 'teacher', 'parent', 'status' ), 'teacher' );
-	$appointment_order   = flzest_admin_order();
+	$appointment_orderby = flz_ui_admin_orderby( array( 'start', 'end', 'teacher', 'parent', 'status' ), 'teacher' );
+	$appointment_order   = flz_ui_admin_order();
 	$appointment_base_args = array(
 		'page' => 'flzest_appointments',
 	);
@@ -244,20 +242,50 @@ function flzest_appointments_page_content(): void {
 				'status'  => array( empty( $left->parent ) ? 'frei' : 'belegt', empty( $right->parent ) ? 'frei' : 'belegt' ),
 			);
 
-			$result = flzest_admin_compare( $values[ $appointment_orderby ][0], $values[ $appointment_orderby ][1], $appointment_order );
+			$result = flz_ui_admin_compare( $values[ $appointment_orderby ][0], $values[ $appointment_orderby ][1], $appointment_order );
 			if ( 0 === $result && 'teacher' === $appointment_orderby ) {
-				$result = flzest_admin_compare( $left_teacher_first_name, $right_teacher_first_name, $appointment_order );
+				$result = flz_ui_admin_compare( $left_teacher_first_name, $right_teacher_first_name, $appointment_order );
 			}
 			if ( 0 === $result ) {
-				return flzest_admin_compare( $left->start, $right->start, 'asc' );
+				return flz_ui_admin_compare( $left->start, $right->start, 'asc' );
 			}
 
 			return $result;
 		}
 	);
 
-	
-	$csvFile = flz_wpdb_objects_create_csv($appointments, 'appointments.csv', "Name Lehrer; Vorname Lehrer; Email Lehrer; Beginn; Ende; Name Eltern; Vorname Eltern; Email Eltern; Name Schüler:in; Klasse Schüler:in; bestätigt\n");
+	$csvFile = flz_wpdb_objects_create_csv_file(
+		array(
+			'Name Lehrer',
+			'Vorname Lehrer',
+			'Email Lehrer',
+			'Beginn',
+			'Ende',
+			'Name Eltern',
+			'Vorname Eltern',
+			'Email Eltern',
+			'Name Schüler:in',
+			'Klasse Schüler:in',
+			'bestätigt',
+		),
+		array_map(
+			static fn( FlzEstAppointment $appointment ): array => array(
+				$appointment->teacher?->name,
+				$appointment->teacher?->firstName,
+				$appointment->teacher?->email,
+				$appointment->start ? date( 'H:i', $appointment->start ) : '',
+				$appointment->end ? date( 'H:i', $appointment->end ) : '',
+				$appointment->parent ? $appointment->parent->name : 'kein Eintrag',
+				$appointment->parent?->firstName,
+				$appointment->parent?->email,
+				$appointment->parent?->studentName,
+				$appointment->parent?->studentClass,
+				$appointment->isConfirmed ? 'ja' : 'nein',
+			),
+			$appointments
+		),
+		'appointments.csv'
+	);
 	include( plugin_dir_path( __FILE__ ) . '../templates/appointments.php' );
 }
 

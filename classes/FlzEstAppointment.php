@@ -125,24 +125,6 @@ class flzEstAppointment extends FlzWpdbObject
 		return $errors;
 	}
 
-	public function getCsvLine(): string {
-		return implode( ';', [
-
-    		$this->teacher->name,
-    		$this->teacher->firstName,
-    		$this->teacher->email,
-			date("H:i", $this->start),
-			date("H:i", $this->end),
-			$this->parent?$this->parent->name:'kein Eintrag',
-			$this->parent?->firstName,
-			$this->parent?->email,
-    		$this->parent?->studentName,
-    		$this->parent?->studentClass,
-    		$this->isConfirmed?'ja':'nein'
-    	] );
-
-	}
-
 	public function activate($token): string
 	{
 		$token_valid = is_string( $token )
