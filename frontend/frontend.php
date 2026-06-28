@@ -27,7 +27,7 @@ function flzest_probeunterricht_form( $atts ): false|string {
 		$request_method = isset( $_SERVER['REQUEST_METHOD'] )
 			? sanitize_key( wp_unslash( $_SERVER['REQUEST_METHOD'] ) )
 			: '';
-		if ( 'POST' === $request_method ) {
+		if ( 'post' === $request_method ) {
 			if (
 				! isset( $_POST['flzest_nonce'] )
 				|| ! wp_verify_nonce(
@@ -400,3 +400,35 @@ function createSelectFieldWithLabel($fieldName, $fieldId, $labelText, $options, 
 }
 // Hinzufügen des Formulars im Frontend
 add_shortcode( 'flzest', 'flzest_probeunterricht_form' );
+
+/**
+ * Registriert den Gutenberg-Block für das Elternsprechtagsformular.
+ */
+function flzest_register_blocks(): void {
+	if ( ! function_exists( 'flz_ui_register_shortcode_block' ) ) {
+		return;
+	}
+
+	flz_ui_register_shortcode_block( array(
+		'name'        => 'flz/elternsprechtag',
+		'shortcode'   => 'flzest',
+		'title'       => 'FLZ Elternsprechtag',
+		'description' => 'Buchungsformular für den Elternsprechtag.',
+		'icon'        => 'calendar-alt',
+		'keywords'    => array( 'elternsprechtag', 'termin', 'flz' ),
+		'attributes'  => array(
+			'danke' => array(
+				'type'    => 'string',
+				'default' => '',
+			),
+		),
+		'fields'      => array(
+			'danke' => array(
+				'label'       => 'Danke-Seite-ID',
+				'description' => 'Optional: WordPress-Seiten-ID für die Weiterleitung nach erfolgreicher Buchung.',
+			),
+		),
+	) );
+}
+
+add_action( 'init', 'flzest_register_blocks' );

@@ -6,6 +6,18 @@ $flzest_gender_options = array(
 	''  => 'keine Angabe',
 );
 
+$flzest_teacher_sort_link = static function ( string $label, string $sort ) use ( $flzest_ui, $teacher_orderby, $teacher_order, $teacher_base_args ): string {
+	return $flzest_ui->admin_table_sort_link(
+		array(
+			'label'         => $label,
+			'sort'          => $sort,
+			'current_sort'  => $teacher_orderby,
+			'current_order' => $teacher_order,
+			'url_args'      => $teacher_base_args,
+		)
+	);
+};
+
 $flzest_teacher_row = static function ( FlzEstTeacher $teacher ) use ( $flzest_ui, $flzest_gender_options ): string {
 	$is_new = empty( $teacher->id );
 	$row_id = $is_new ? 'flzest-teacher-new' : 'flzest-teacher-' . (int) $teacher->id;
@@ -87,29 +99,10 @@ $flzest_teacher_row = static function ( FlzEstTeacher $teacher ) use ( $flzest_u
 ?>
 <div class="wrap">
 	<h1>Lehrpersonal bearbeiten</h1>
-	<div style="width: 100%; overflow: auto; max-height: 24em;">
-		<p>
-			<?php echo $flzest_ui->button_new( array( 'label' => 'Neue Lehrkraft anlegen', 'attrs' => array( 'data-flz-ui-show-new-row' => 'flzest-teacher-new' ) ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Renderer escaped die Komponente. ?>
-		</p>
+	<p>
+		<?php echo $flzest_ui->button_new( array( 'label' => 'Neue Lehrkraft anlegen', 'attrs' => array( 'data-flz-ui-show-new-row' => 'flzest-teacher-new' ) ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Renderer escaped die Komponente. ?>
+	</p>
 
-		<table>
-			<thead>
-				<tr>
-					<th>Anrede</th>
-					<th>Name</th>
-					<th>Vorname</th>
-					<th>Email</th>
-					<th>Aktionen</th>
-				</tr>
-			</thead>
-			<tbody>
-				<?php echo $flzest_teacher_row( new FlzEstTeacher( array() ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Renderer escaped die Tabellenzeile. ?>
-				<?php foreach ( $teachers as $teacher ) : ?>
-					<?php echo $flzest_teacher_row( $teacher ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Renderer escaped die Tabellenzeile. ?>
-				<?php endforeach; ?>
-			</tbody>
-		</table>
-	</div>
 	<?php
 	// phpcs:disable WordPress.Security.EscapeOutput.OutputNotEscaped -- Renderer escaped die CSV-Komponente inklusive URL, Labels und Formularfeldern.
 	echo $flzest_ui->csv_panel(
@@ -131,4 +124,38 @@ $flzest_teacher_row = static function ( FlzEstTeacher $teacher ) use ( $flzest_u
 	);
 	// phpcs:enable WordPress.Security.EscapeOutput.OutputNotEscaped
 	?>
+
+	<table class="widefat striped flz-ui-admin-table">
+		<thead>
+			<tr>
+				<th><?php echo $flzest_teacher_sort_link( 'Anrede', 'gender' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Renderer escaped den Sortierlink. ?></th>
+				<th>
+					<div class="flz-ui-table-head">
+						<?php echo $flzest_teacher_sort_link( 'Name', 'name' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Renderer escaped den Sortierlink. ?>
+						<form method="get" class="flz-ui-table-filter-form">
+							<input type="hidden" name="page" value="flzest_teachers" />
+							<input type="hidden" name="orderby" value="<?php echo esc_attr( $teacher_orderby ); ?>" />
+							<input type="hidden" name="order" value="<?php echo esc_attr( $teacher_order ); ?>" />
+							<?php echo $flzest_ui->input( 'text', array( 'name' => 'teacher_search', 'label' => 'Lehrkräfte nach Nachname filtern', 'value' => $teacher_search, 'placeholder' => 'Nachname' ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Renderer escaped die Komponente. ?>
+							<?php echo $flzest_ui->button_filter( array( 'label' => 'Lehrkräfte filtern' ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Renderer escaped die Komponente. ?>
+						</form>
+					</div>
+				</th>
+				<th><?php echo $flzest_teacher_sort_link( 'Vorname', 'firstName' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Renderer escaped den Sortierlink. ?></th>
+				<th><?php echo $flzest_teacher_sort_link( 'E-Mail', 'email' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Renderer escaped den Sortierlink. ?></th>
+				<th>Aktionen</th>
+			</tr>
+		</thead>
+		<tbody>
+			<?php echo $flzest_teacher_row( new FlzEstTeacher( array() ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Renderer escaped die Tabellenzeile. ?>
+			<?php foreach ( $teachers as $teacher ) : ?>
+				<?php echo $flzest_teacher_row( $teacher ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Renderer escaped die Tabellenzeile. ?>
+			<?php endforeach; ?>
+		</tbody>
+	</table>
+	<?php if ( '' !== $teacher_search ) : ?>
+		<p>
+			<?php echo $flzest_ui->button( array( 'href' => admin_url( 'admin.php?page=flzest_teachers' ), 'label' => 'Filter zurücksetzen', 'variant' => 'secondary' ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Renderer escaped die Komponente. ?>
+		</p>
+	<?php endif; ?>
 </div>

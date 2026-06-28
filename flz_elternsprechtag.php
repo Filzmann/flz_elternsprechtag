@@ -1,6 +1,6 @@
 <?php
 /*
-Plugin Name: flz_elternsprechtag
+Plugin Name: FLZ Elternsprechtag
 Plugin URI: Deine Plugin-URI
 Description: Elternsprechtag am Tagore-Gymnasium
 Version: 1.0

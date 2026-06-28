@@ -185,6 +185,76 @@ function flzest_appointments_page_content(): void {
 	processAppointmentForm();
 	// show appointment table
 	$appointments = flzEstAppointment::get_all_by();
+	$appointment_teacher_filter = flzest_admin_filter_text( 'teacher_filter' );
+	$appointment_booking_filter = isset( $_GET['booking_filter'] ) ? sanitize_key( wp_unslash( $_GET['booking_filter'] ) ) : 'all';
+	if ( ! in_array( $appointment_booking_filter, array( 'all', 'booked', 'free' ), true ) ) {
+		$appointment_booking_filter = 'all';
+	}
+	$appointment_orderby = flzest_admin_orderby( array( 'start', 'end', 'teacher', 'parent', 'status' ), 'teacher' );
+	$appointment_order   = flzest_admin_order();
+	$appointment_base_args = array(
+		'page' => 'flzest_appointments',
+	);
+	if ( '' !== $appointment_teacher_filter ) {
+		$appointment_base_args['teacher_filter'] = $appointment_teacher_filter;
+	}
+	if ( 'all' !== $appointment_booking_filter ) {
+		$appointment_base_args['booking_filter'] = $appointment_booking_filter;
+	}
+
+	$appointments = array_values( array_filter(
+		$appointments,
+		static function ( $appointment ) use ( $appointment_teacher_filter, $appointment_booking_filter ): bool {
+			$teacher_label = $appointment->teacher
+				? (string) $appointment->teacher->name
+				: '';
+			$is_booked = ! empty( $appointment->parent );
+
+			if ( '' !== $appointment_teacher_filter && false === stripos( $teacher_label, $appointment_teacher_filter ) ) {
+				return false;
+			}
+
+			if ( 'booked' === $appointment_booking_filter && ! $is_booked ) {
+				return false;
+			}
+
+			if ( 'free' === $appointment_booking_filter && $is_booked ) {
+				return false;
+			}
+
+			return true;
+		}
+	) );
+
+	usort(
+		$appointments,
+		static function ( $left, $right ) use ( $appointment_orderby, $appointment_order ): int {
+			$left_teacher = $left->teacher ? (string) $left->teacher->name : '';
+			$right_teacher = $right->teacher ? (string) $right->teacher->name : '';
+			$left_teacher_first_name = $left->teacher ? (string) $left->teacher->firstName : '';
+			$right_teacher_first_name = $right->teacher ? (string) $right->teacher->firstName : '';
+			$left_parent = $left->parent ? trim( (string) $left->parent->name . ', ' . (string) $left->parent->firstName ) : '';
+			$right_parent = $right->parent ? trim( (string) $right->parent->name . ', ' . (string) $right->parent->firstName ) : '';
+
+			$values = array(
+				'start'   => array( $left->start, $right->start ),
+				'end'     => array( $left->end, $right->end ),
+				'teacher' => array( $left_teacher, $right_teacher ),
+				'parent'  => array( $left_parent, $right_parent ),
+				'status'  => array( empty( $left->parent ) ? 'frei' : 'belegt', empty( $right->parent ) ? 'frei' : 'belegt' ),
+			);
+
+			$result = flzest_admin_compare( $values[ $appointment_orderby ][0], $values[ $appointment_orderby ][1], $appointment_order );
+			if ( 0 === $result && 'teacher' === $appointment_orderby ) {
+				$result = flzest_admin_compare( $left_teacher_first_name, $right_teacher_first_name, $appointment_order );
+			}
+			if ( 0 === $result ) {
+				return flzest_admin_compare( $left->start, $right->start, 'asc' );
+			}
+
+			return $result;
+		}
+	);
 
 	
 	$csvFile = flz_wpdb_objects_create_csv($appointments, 'appointments.csv', "Name Lehrer; Vorname Lehrer; Email Lehrer; Beginn; Ende; Name Eltern; Vorname Eltern; Email Eltern; Name Schüler:in; Klasse Schüler:in; bestätigt\n");

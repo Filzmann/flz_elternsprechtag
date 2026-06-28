@@ -5,7 +5,7 @@
 	        echo esc_html( flz_ui_format_date( $nextEST, $nextEST ) );
         ?> statt.
     </p>
-    <div style="display: inline-block; width: 100%; overflow: auto; ">
+    <div class="flzest-frontend-form">
         <?php
 	        echo step1( $selected ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- step1 nutzt flz_ui-Renderer und escaped dynamische Texte selbst.
         ?>
