@@ -41,9 +41,8 @@ WordPress-/Datenbankprüfung wurde nicht ausgeführt.
 4. E-Mail- und Bestätigungstoken-Vertrag härten: Absender konfigurierbar,
    Adressen validiert, Tokens nach Nutzung gelöscht, Fehler ohne Personen- oder
    Tokenwerte protokolliert.
-5. Direkte Includes aus Geschwister-Plugins entfernen und nur deren
-   dokumentierte öffentliche Bootstrap-/Funktionsverträge verwenden. Bei
-   fehlendem `flz_wpdb_objects` ebenso defensiv abbrechen wie bei fehlender UI.
+5. **Erledigt:** Direkte Includes aus Geschwister-Plugins entfernt; verzögerter
+   Bootstrap prüft beide öffentlichen APIs und Mindestversionen defensiv.
 6. PHPUnit-Runner bereitstellen und Allow-/Deny-Tests für Adminaktionen,
    CSV-Import, öffentliche Buchung, Tokenbestätigung und Fehlernebenwirkungen
    ergänzen.
