@@ -13,6 +13,9 @@ No-Regression-Coverage, ausgefüllte Browser-/Mail-/Zwei-Prozess-Abnahme und ein
 reproduzierbar geprüftes Release-Artefakt. Das Protokoll liegt unter
 `docs/manual-acceptance.md`.
 
+Der PHPCOV-/Xdebug-Job ist konfiguriert. Eine PHP-Baseline darf erst aus dem
+reproduzierbaren Remote-Lauf übernommen werden und bleibt bis dahin `pending`.
+
 ## P0
 
 1. **Codevertrag erledigt:** Deaktivierung löscht keine Tabellen, Rollen oder
