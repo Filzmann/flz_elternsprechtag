@@ -2,45 +2,56 @@
 
 ## Prüfstatus
 
-**Nicht regelkonform / P0.** Das Plugin schützt viele Admin-POST-Pfade zentral
-mit Capability und Nonce und escaped die geprüften Templates überwiegend.
-Dem stehen unmittelbare Datenverlust- und Datenschutzrisiken gegenüber. Der
-vorhandene PHPUnit-Test hat im Repository keinen installierten Runner; eine
-WordPress-/Datenbankprüfung wurde nicht ausgeführt.
+**Funktionsstand 1.1.0 ohne offene P0-Befunde; Release-Gate in
+Übernahmephase 2 blockiert.** Deaktivierung,
+geschützte CSV-Roundtrips, Testmail, Parallelbuchung, additive Legacy-Migration,
+Datenschutz und Terminvalidierung sind im Code abgesichert. Komponenten-Smokes,
+PHPCS, echte lokale Bestandsmigration und Aktivieren–Deaktivieren–Aktivieren
+wurden geprüft. PR-/Main-CI, branchgleiche Shared-Plugins und die PHP-Ratsche
+von 10,69 Prozent sind remote enforced. Der reproduzierbare ZIP-Builder ist
+konfiguriert. Vor einem Tag fehlen die schrittweise Annäherung an 85 Prozent,
+die Browser-/Mail-/Zwei-Prozess-Abnahme sowie Installation, Upgrade und Rückbau
+aus dem exakten Artefakt. Das Protokoll liegt unter
+`docs/manual-acceptance.md`.
 
 ## P0
 
-1. Deaktivierung nichtdestruktiv machen: keine Tabellen, Rollen oder
-   Capabilities beim bloßen Deaktivieren löschen. Separaten, standardmäßig
-   datenbewahrenden Uninstall-Vertrag erst nach Produktentscheidung ergänzen.
-   Abnahme: Aktivieren–Deaktivieren–Aktivieren erhält synthetische Termine und
-   Elternangaben vollständig.
-2. Lehrkräfte- und Terminexport nicht mehr per
-   `flz_wpdb_objects_create_csv_file()` als öffentliche `teachers.csv` bzw.
-   `appointments.csv` erzeugen. Capability- und nonce-geschützten Direktdownload
-   verwenden; keine Datei darf im Upload-Verzeichnis verbleiben.
-3. Private Gmail-Adresse aus dem Testmodus entfernen. Mailtests ausschließlich
-   lokal über Mail-Capture oder einen ausdrücklich konfigurierten Filter mit
-   synthetischen Empfängern durchführen.
-4. Terminbuchung gegen Parallelzugriffe sichern. Auswahl, Freiheitsprüfung,
-   Elternspeicherung und Terminbelegung in einer atomaren Operation mit
-   Datenbankinvariante ausführen. Abnahme: Zwei parallele Buchungen desselben
-   Slots ergeben genau eine Buchung und keinen verwaisten Elterndatensatz.
+1. **Codevertrag erledigt:** Deaktivierung löscht keine Tabellen, Rollen oder
+   Capabilities mehr; ein Komponenten-Smoke verhindert die destruktiven
+   Aufrufe. Die Aktivieren–Deaktivieren–Aktivieren-Abnahme erhielt lokal
+   85 Lehrkräfte, 5 Elternteile und 1004 Termine sowie Rolle und Capability.
+2. **Codevertrag erledigt:** Lehrkräfte- und Terminexport verwenden einen
+   Capability- und nonce-geschützten Direktdownload; der Elternsprechtag legt
+   keine neuen Exportdateien im Upload-Verzeichnis an. Die beiden lokal
+   vorhandenen Altdateien wurden entfernt und liefern anschließend HTTP 404.
+3. **Erledigt:** Der Testmodus verwendet ausschließlich den reservierten,
+   synthetischen Empfänger `private-test@example.test`; ein Smoke-Test sperrt
+   Gmail-/Googlemail-Adressen. Eine visuelle Zustellungsabnahme in Mailpit
+   bleibt offen.
+4. **Codevertrag erledigt:** Elternspeicherung und Terminbelegung laufen in
+   einer Transaktion; das Termin-Update greift atomar nur bei weiterhin leerer
+   `parent_id`. Ein Konkurrenztest belegt Erfolgs- und Konfliktfall. Ein echter
+   Zwei-Prozess-DDEV-Test bleibt als Integrationsnachweis offen.
 
 ## P1
 
-1. Lehrkräfte sowie Termine/Buchungen jeweils als versionierten, vollständigen
-   CSV-Roundtrip mit Dry-Run, Referenzprüfung und atomarem Import definieren;
-   Einstellungen erhalten nach fachlicher Entscheidung einen Portabilitätspfad.
-2. Schema-Version und additive, idempotente Upgrades einführen; bereits
-   ausgelieferte Migrationen nicht verändern. Frischinstallation, Upgrade,
-   Wiederholung und ungültige Altdaten testen.
-3. Aufbewahrung, Auskunft, Bestätigung, Widerruf, Anonymisierung und Löschung
-   der Eltern-/Kind-/Lehrkräftedaten fachlich festlegen und WordPress-Privacy-
-   Exporter/-Eraser ergänzen.
-4. E-Mail- und Bestätigungstoken-Vertrag härten: Absender konfigurierbar,
-   Adressen validiert, Tokens nach Nutzung gelöscht, Fehler ohne Personen- oder
-   Tokenwerte protokolliert.
+1. **Codevertrag erledigt:** Lehrkräfte sowie Termine/Buchungen besitzen einen
+   versionierten v1-Roundtrip mit obligatorischem Dry-Run, datei- und
+   benutzergebundenem Prüfnachweis, Referenzprüfung und atomarem Import.
+   Lehrkräfte werden nichtdestruktiv aktualisiert/ergänzt; Termine verlangen
+   einen vollständigen Snapshot. Ein manueller Import mit synthetischem
+   Komplettbestand, die Produktentscheidung zum früheren vier-spaltigen
+   Vorbelegungsformat sowie ein Portabilitätspfad für Einstellungen bleiben
+   offen.
+2. **Erledigt:** DB-Version 2.0.0 und additive, idempotente Migration übernehmen
+   Legacy-Bestände; Alt-Tabellen bleiben erhalten. Frischinstallation,
+   Wiederholung, Konfliktabbruch und der reale lokale Bestand wurden geprüft.
+3. **Erledigt:** Aufbewahrung ist standardmäßig aus, 24 Monate sind der
+   konfigurierbare Vorschlag. WordPress-Exporter/-Eraser sowie bestätigte
+   manuelle und optionale geplante Löschung sind vorhanden.
+4. **Erledigt:** Absender und Empfänger werden validiert, der Absender ist
+   konfigurierbar, verwendete Tokens werden entfernt und Logs enthalten weder
+   Personen- noch Tokenwerte.
 5. **Erledigt:** Direkte Includes aus Geschwister-Plugins entfernt; verzögerter
    Bootstrap prüft beide öffentlichen APIs und Mindestversionen defensiv.
 6. PHPUnit-Runner bereitstellen und Allow-/Deny-Tests für Adminaktionen,
@@ -53,7 +64,7 @@ WordPress-/Datenbankprüfung wurde nicht ausgeführt.
    globale, uneinheitlich benannte Funktionen schrittweise präfixen.
 2. Sämtliche UI-Texte mit der komponenteneigenen Textdomain übersetzbar machen
    und `Text Domain` im Plugin-Header ergänzen.
-3. Datums-/Zeitzonenlogik auf WordPress-Zeitfunktionen vereinheitlichen und
-   Start-/Ende-/Slotlänge fachlich validieren.
+3. **Erledigt:** Terminrahmen und Slotlänge werden fachlich validiert; die
+   Berechnung verwendet die WordPress-Zeitzone und ist strikt begrenzt.
 4. Öffentliche Mehrschrittbuchung in DDEV per Tastatur, mobil, mit sichtbaren
    Fehlern und abgelaufenen/manipulierten Links prüfen.

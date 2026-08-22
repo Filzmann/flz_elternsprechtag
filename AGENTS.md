@@ -25,3 +25,30 @@ Allow-/Deny-Fälle und das Ausbleiben verbotener Nebenwirkungen. Den vorhandenen
 PHPUnit-Test sowie `./scripts/check-fast` ausführen; fehlenden Runner und
 WordPress-/DDEV-Prüfung ehrlich benennen. Keine Commits, Pushes, Aktivierungen,
 Imports oder Deployments ohne ausdrückliche Freigabe; nie `git add .` verwenden.
+
+## Commit-, Coverage- und Release-Gates
+
+- Der aktuelle Übernahmestand ist Phase 2: PR-/Main-CI, branchgleiche
+  Provider-Checkouts und die PHP-Coverage-Ratsche sind remote belegt. Normale
+  Produktcommits brauchen das enforced Commit-Gate; Releasecommits bleiben bis
+  zur Abnahme und zum reproduzierbaren Artefakt-Gate blockiert.
+- Vor jedem normalen Commit sind Status, Diff-Statistik und vollständige
+  Dateiliste zu zeigen; fokussierte Tests, `./scripts/check-fast`, Shared-
+  Provider-/Consumer-Tests, CI und Coverage-Gates müssen grün sein. Dateien
+  werden einzeln gestaged; `git add .` bleibt verboten.
+- PHP-Line-Coverage wird gegen eine gemessene No-Regression-Baseline geprüft.
+  Neuer oder wesentlich geänderter Code erreicht mindestens 85 Prozent;
+  Sicherheits-, Datenschutz-, Migrations- und Nebenläufigkeitsinvarianten sind
+  unabhängig davon vollständig abgedeckt.
+- Der PHPCOV-/Xdebug-Messjob erzwingt eine PHP-Baseline von 10,69 Prozent; das
+  separate Ziel für neuen oder wesentlich geänderten Code bleibt 85 Prozent.
+- `scripts/build-release` erzeugt über den kanonischen Workspace-Builder ein
+  reproduzierbares Ein-Wurzel-ZIP mit Manifest und SHA-256. Das Artefakt-Gate
+  bleibt bis zur Prüfung des exakten ZIP in WordPress `configured`.
+- Ein Fast- oder Diagnosecheck ist kein Releaseurteil. Ein Release braucht ein
+  sauberes Repository, konsistente Version/Changelog/Lizenz, vollständig
+  ausgefülltes `docs/manual-acceptance.md`, ein reproduzierbares Ein-Wurzel-
+  Archiv, Manifest und SHA-256 sowie geprüfte Installation, Upgrade,
+  Deaktivierung, Datenschutz, Mail, sichtbare UI und Rückbau aus dem Artefakt.
+- Bauen, Signieren, Taggen, Pushen, Publizieren und Deployen bleiben getrennte,
+  ausdrücklich zu autorisierende Aktionen.

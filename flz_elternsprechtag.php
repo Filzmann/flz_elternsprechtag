@@ -1,20 +1,23 @@
 <?php
 /*
 Plugin Name: FLZ Elternsprechtag
-Plugin URI: Deine Plugin-URI
 Description: Elternsprechtag am Tagore-Gymnasium
-Version: 1.0
+Version: 1.1.0
 Author: Filzmann
-Author URI: Deine Autor-URI
 License: GPLv2 or later
 Requires Plugins: flz_wpdb_objects, flz_ui_components
+Text Domain: flz-elternsprechtag
+Requires at least: 6.5
+Requires PHP: 8.1
 */
 namespace flz_est;
 
 defined( 'ABSPATH' ) || exit;
 
-const FLZ_EST_MIN_WPDB_OBJECTS_VERSION = '1.4.0';
-const FLZ_EST_MIN_UI_COMPONENTS_VERSION = '0.1.11';
+const FLZ_EST_VERSION = '1.1.0';
+const FLZ_EST_DB_VERSION = '2.0.0';
+const FLZ_EST_MIN_WPDB_OBJECTS_VERSION = '2.0.0';
+const FLZ_EST_MIN_UI_COMPONENTS_VERSION = '0.2.0';
 
 function flz_est_dependencies_available(): bool {
 	return defined( 'FLZ_WPDB_OBJECTS_VERSION' )
@@ -43,9 +46,13 @@ function flz_est_bootstrap(): bool {
 	}
 
 	require_once plugin_dir_path( __FILE__ ) . 'error-handling.php';
+	require_once plugin_dir_path( __FILE__ ) . 'includes/csv-contract.php';
 	require_once plugin_dir_path( __FILE__ ) . 'activate-deactivate.php';
+	require_once plugin_dir_path( __FILE__ ) . 'includes/class-flz-est-schema-migrator.php';
+	require_once plugin_dir_path( __FILE__ ) . 'includes/privacy.php';
 	require_once plugin_dir_path( __FILE__ ) . 'backend/backend.php';
 	require_once plugin_dir_path( __FILE__ ) . 'frontend/frontend.php';
+	\FlzEstSchemaMigrator::maybe_upgrade();
 	$loaded = true;
 
 	return true;

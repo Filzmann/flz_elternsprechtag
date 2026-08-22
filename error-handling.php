@@ -49,3 +49,15 @@ function flzest_assert_admin_request(): void
 		check_admin_referer( 'flzest_admin_action' );
 	}
 }
+
+/**
+ * Prüft Berechtigung und Nonce eines CSV-Direktdownloads.
+ */
+function flzest_assert_csv_export_request( string $nonce_action ): void
+{
+	if ( ! current_user_can( 'flz_est' ) ) {
+		wp_die( esc_html__( 'Keine Berechtigung.', 'flz-elternsprechtag' ) );
+	}
+
+	check_admin_referer( $nonce_action );
+}

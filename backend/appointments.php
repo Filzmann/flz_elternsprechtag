@@ -67,82 +67,192 @@ function countFilledFieldsInArray($array): int {
 	}
 	return $count;
 }
+/**
+ * @return array{type:string,message:string}|null
+ */
 function processAppointmentsCsvFile(): array|null {
-	$unprocessedLines=array();
-
 	try {
-		$isFormSubmitted = isset($_POST['submit_csv']);
-		if (!$isFormSubmitted) {
+		$is_dry_run = isset( $_POST['submit_csv_dry_run'] );
+		$is_import = isset( $_POST['submit_csv'] );
+		if ( ! $is_dry_run && ! $is_import ) {
 			return null;
 		}
-			$imports = array();
-			$reserved_appointment_ids = array();
-			foreach ( flz_wpdb_objects_read_uploaded_csv( 'appointments-csv', 'Importieren der Elternsprechtagstermine aus CSV' ) as $line ) {
-					if ( count( $line ) < 4 ) {
-						$line['error'] = 'Die CSV-Zeile enthält weniger als vier Spalten.';
-						$unprocessedLines[] = $line;
-						continue;
-					}
-				$teacher= FlzEstTeacher::get_by_email($line[0]);
 
-				if(!$teacher)
-				{
-					$line['error']='Kein Lehrer mit dieser Email vorhanden';
-					$unprocessedLines[]=$line;
-					continue;
-				}
+		$appointment_rows = flzest_parse_appointment_csv(
+			flz_wpdb_objects_read_uploaded_csv( 'appointments-csv', 'Importieren der Elternsprechtagstermine aus CSV', false )
+		);
+		$plan = flzest_plan_appointment_csv_import( $appointment_rows );
+		$proof_hash = flzest_appointment_csv_proof_hash( $appointment_rows );
 
-				$appointment=FlzEstAppointment::get_by_teacher_and_start($teacher, $line[1]);
+		if ( $is_dry_run ) {
+			set_transient( flzest_appointment_csv_proof_key(), $proof_hash, 15 * MINUTE_IN_SECONDS );
 
-				if(!$appointment)
-				{
-					$line['error']='Appointment not found';
-					$unprocessedLines[]=$line;
-					continue;
-				}
-				if($appointment->parent)
-				{
-					$line['error']='Dieser Slot ist bereits belegt, bitte manuell prüfen';
-					$unprocessedLines[]=$line;
-					continue;
-				}
-				if ( in_array( (int) $appointment->id, $reserved_appointment_ids, true ) ) {
-					$line['error'] = 'Dieser Slot kommt mehrfach in der CSV-Datei vor.';
-					$unprocessedLines[] = $line;
-					continue;
-				}
-				$reserved_appointment_ids[] = (int) $appointment->id;
-				$parent = new FlzEstParent(
-					array(
-						'studentName'=>$line[2],
-						'studentClass'=>$line[3],
-						'gdprChecked'=>true,
-						'name'=>'Vorbelegung Schule',
-						'firstName'=>'',
-						'email'=>'info@tagore-gymnasium.de'
-					)
-				);
-				$imports[] = array( 'parent' => $parent, 'appointment' => $appointment );
-			}
-
-			flz_wpdb_objects\FlzWpdbTransaction::run(
-				static function () use ( $imports ): void {
-					foreach ( $imports as $import ) {
-						$parent = $import['parent'];
-						$appointment = $import['appointment'];
-						$parent->save();
-						$appointment->parent = $parent;
-						$appointment->isConfirmed = true;
-						$appointment->save();
-					}
-				},
-				'Importieren aller vorab belegten Elternsprechtagstermine'
+			return array(
+				'type' => 'success',
+				'message' => sprintf(
+					'Dry-Run erfolgreich: vollständiger Snapshot mit %d belegten und %d freien Terminen.',
+					$plan['booked'],
+					$plan['free']
+				),
 			);
+		}
 
-	} catch (Throwable $error) {
-		throw flzest_operation_error( $error, 'Importieren der Elternsprechtagstermine aus CSV' );
+		$stored_proof = get_transient( flzest_appointment_csv_proof_key() );
+		if ( ! is_string( $stored_proof ) || ! hash_equals( $stored_proof, $proof_hash ) ) {
+			throw new UnexpectedValueException( 'Diese Datei muss vor dem Import erneut erfolgreich als Dry-Run geprüft werden.' );
+		}
+
+		flz_wpdb_objects\FlzWpdbTransaction::run(
+			static function () use ( $plan, $proof_hash, $appointment_rows ): void {
+				$appointments = array_column( $plan['appointments'], 'appointment' );
+				usort(
+					$appointments,
+					static fn( FlzEstAppointment $left, FlzEstAppointment $right ): int => $left->id <=> $right->id
+				);
+				foreach ( $appointments as $appointment ) {
+					$appointment->lock_for_update();
+				}
+				if ( ! hash_equals( $proof_hash, flzest_appointment_csv_proof_hash( $appointment_rows ) ) ) {
+					throw new UnexpectedValueException( 'Der Terminbestand hat sich seit dem Dry-Run verändert.' );
+				}
+				flzest_apply_appointment_csv_import_plan( $plan );
+			},
+			'Wiederherstellen aller Elternsprechtagstermine aus CSV'
+		);
+		delete_transient( flzest_appointment_csv_proof_key() );
+
+		return array(
+			'type' => 'success',
+			'message' => sprintf(
+				'Import abgeschlossen: %d belegte und %d freie Termine wiederhergestellt.',
+				$plan['booked'],
+				$plan['free']
+			),
+		);
+	} catch ( Throwable $error ) {
+		flzest_log_error( $error, 'Prüfen oder Importieren der Elternsprechtagstermine aus CSV' );
+
+		return array(
+			'type' => 'error',
+			'message' => $error instanceof UnexpectedValueException
+				? $error->getMessage()
+				: 'Die Termin-CSV konnte nicht sicher verarbeitet werden.',
+		);
 	}
-	return $unprocessedLines;
+}
+
+/**
+ * @param array{appointments:array<int,array{appointment:FlzEstAppointment,parent:FlzEstParent|null,confirmed:bool}>,booked:int,free:int} $plan
+ */
+function flzest_apply_appointment_csv_import_plan( array $plan ): void {
+	$old_parents = array();
+	foreach ( $plan['appointments'] as $item ) {
+		$appointment = $item['appointment'];
+		$old_parent = $appointment->parent;
+		if ( $old_parent instanceof FlzEstParent && ! empty( $old_parent->id ) ) {
+			$old_parents[ (int) $old_parent->id ] = $old_parent;
+		}
+		if ( $item['parent'] instanceof FlzEstParent ) {
+			$item['parent']->save();
+		}
+		$appointment->parent = $item['parent'];
+		$appointment->isConfirmed = $item['confirmed'];
+		$appointment->confirmationToken = null;
+		$appointment->confirmationExpiration = 0;
+		$appointment->save();
+	}
+	foreach ( $old_parents as $old_parent ) {
+		if ( null === FlzEstAppointment::get_by_fields( array( 'parent_id' => (int) $old_parent->id ) ) ) {
+			$old_parent->delete();
+		}
+	}
+}
+
+/**
+ * @param array<int,array<string,mixed>> $appointment_rows
+ * @return array{appointments:array<int,array{appointment:FlzEstAppointment,parent:FlzEstParent|null,confirmed:bool}>,booked:int,free:int}
+ */
+function flzest_plan_appointment_csv_import( array $appointment_rows ): array {
+	$existing = array();
+	foreach ( FlzEstAppointment::get_all_by() as $appointment ) {
+		if ( ! $appointment->teacher instanceof FlzEstTeacher ) {
+			throw new UnexpectedValueException( 'Ein vorhandener Termin besitzt keine gültige Lehrkraftreferenz.' );
+		}
+		$key = strtolower( (string) $appointment->teacher->email ) . '|' . (string) $appointment->start;
+		if ( isset( $existing[ $key ] ) ) {
+			throw new UnexpectedValueException( 'Die vorhandenen Termine enthalten einen doppelten Lehrkraft-/Beginn-Schlüssel.' );
+		}
+		$existing[ $key ] = $appointment;
+	}
+
+	$items = array();
+	$booked = 0;
+	$free = 0;
+	foreach ( $appointment_rows as $row ) {
+		$key = $row['teacher_email'] . '|' . (string) $row['start'];
+		if ( ! isset( $existing[ $key ] ) ) {
+			throw new UnexpectedValueException( 'Die CSV referenziert einen unbekannten Termin oder eine unbekannte Lehrkraft.' );
+		}
+		$appointment = $existing[ $key ];
+		if ( (int) $appointment->end !== $row['end'] ) {
+			throw new UnexpectedValueException( 'Die CSV-Endzeit stimmt nicht mit dem vorhandenen Termin überein.' );
+		}
+		unset( $existing[ $key ] );
+
+		$parent = $row['booked'] ? new FlzEstParent( $row['parent'] ) : null;
+		$items[] = array(
+			'appointment' => $appointment,
+			'parent' => $parent,
+			'confirmed' => $row['confirmed'],
+		);
+		$row['booked'] ? ++$booked : ++$free;
+	}
+
+	if ( ! empty( $existing ) ) {
+		throw new UnexpectedValueException( 'Die CSV ist kein vollständiger Snapshot: Mindestens ein vorhandener Termin fehlt.' );
+	}
+
+	return array(
+		'appointments' => $items,
+		'booked' => $booked,
+		'free' => $free,
+	);
+}
+
+/**
+ * @param array<int,array<string,mixed>> $appointment_rows
+ */
+function flzest_appointment_csv_proof_hash( array $appointment_rows ): string {
+	$current_state = array_map(
+		static fn( FlzEstAppointment $appointment ): string => implode(
+			'|',
+			array(
+				(string) $appointment->id,
+				(string) $appointment->teacher?->id,
+				(string) $appointment->start,
+				(string) $appointment->end,
+				(string) $appointment->parent?->id,
+				(string) $appointment->parent?->gender,
+				(string) $appointment->parent?->name,
+				(string) $appointment->parent?->firstName,
+				(string) $appointment->parent?->email,
+				(string) $appointment->parent?->studentName,
+				(string) $appointment->parent?->studentClass,
+				(string) $appointment->parent?->gdprChecked,
+				$appointment->isConfirmed ? '1' : '0',
+				(string) $appointment->confirmationToken,
+				(string) $appointment->confirmationExpiration,
+			)
+		),
+		FlzEstAppointment::get_all_by()
+	);
+	sort( $current_state );
+
+	return hash( 'sha256', serialize( array( $appointment_rows, $current_state ) ) );
+}
+
+function flzest_appointment_csv_proof_key(): string {
+	return 'flzest_appointment_csv_proof_' . get_current_user_id();
 }
 
 
@@ -175,11 +285,7 @@ function flzest_appointments_page_content(): void {
 		empty_appointment( $appointment_id );
 
 	}
-	$unprocessed=processAppointmentsCsvFile();
-	if($unprocessed)
-	{
-		echo flz_ui()->csv_unprocessed_notice( $unprocessed, array( 'name' => 'flzest_unprocessed_appointments' ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Renderer escaped die Komponente.
-	}
+	$appointment_csv_notice = processAppointmentsCsvFile();
 	processAppointmentForm();
 	// show appointment table
 	$appointments = flzEstAppointment::get_all_by();
@@ -254,39 +360,48 @@ function flzest_appointments_page_content(): void {
 		}
 	);
 
-	$csvFile = flz_wpdb_objects_create_csv_file(
-		array(
-			'Name Lehrer',
-			'Vorname Lehrer',
-			'Email Lehrer',
-			'Beginn',
-			'Ende',
-			'Name Eltern',
-			'Vorname Eltern',
-			'Email Eltern',
-			'Name Schüler:in',
-			'Klasse Schüler:in',
-			'bestätigt',
-		),
-		array_map(
-			static fn( FlzEstAppointment $appointment ): array => array(
-				$appointment->teacher?->name,
-				$appointment->teacher?->firstName,
-				$appointment->teacher?->email,
-				$appointment->start ? date( 'H:i', $appointment->start ) : '',
-				$appointment->end ? date( 'H:i', $appointment->end ) : '',
-				$appointment->parent ? $appointment->parent->name : 'kein Eintrag',
-				$appointment->parent?->firstName,
-				$appointment->parent?->email,
-				$appointment->parent?->studentName,
-				$appointment->parent?->studentClass,
-				$appointment->isConfirmed ? 'ja' : 'nein',
-			),
-			$appointments
-		),
-		'appointments.csv'
+	$appointment_csv_export_url = wp_nonce_url(
+		admin_url( 'admin-post.php?action=flzest_export_appointments_csv' ),
+		'flzest_export_appointments_csv'
 	);
 	include( plugin_dir_path( __FILE__ ) . '../templates/appointments.php' );
+}
+
+/**
+ * Sendet alle Buchungen und Termine als geschützten CSV-Direktdownload.
+ */
+function flzest_export_appointments_csv(): void
+{
+	flzest_assert_csv_export_request( 'flzest_export_appointments_csv' );
+
+	try {
+		$appointments = flzEstAppointment::get_all_by();
+		flz_wpdb_objects_send_csv_download(
+			flzest_appointment_csv_header(),
+			array_map(
+				static fn( FlzEstAppointment $appointment ): array => array(
+					FLZEST_CSV_VERSION,
+					'appointment',
+					$appointment->teacher?->email,
+					$appointment->start,
+					$appointment->end,
+					$appointment->parent?->gender,
+					$appointment->parent?->name,
+					$appointment->parent?->firstName,
+					$appointment->parent?->email,
+					$appointment->parent?->studentName,
+					$appointment->parent?->studentClass,
+					$appointment->parent ? 'yes' : '',
+					$appointment->isConfirmed ? '1' : '0',
+				),
+				$appointments
+			),
+			'appointments.csv'
+		);
+	} catch ( Throwable $error ) {
+		flzest_log_error( $error, 'Exportieren der Buchungen und Termine als CSV' );
+		wp_die( esc_html__( 'Die Buchungs-CSV konnte nicht erstellt werden.', 'flz-elternsprechtag' ) );
+	}
 }
 
 function empty_appointment( int $appointment_id ) {
