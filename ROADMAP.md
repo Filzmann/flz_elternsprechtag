@@ -2,12 +2,14 @@
 
 ## Prüfstatus
 
-**Release Candidate 1.1.0 / keine offenen P0-Befunde.** Deaktivierung,
+**Funktionsstand 1.1.0 ohne offene P0-Befunde; Release-Gate in
+Übernahmephase 0 blockiert.** Deaktivierung,
 geschützte CSV-Roundtrips, Testmail, Parallelbuchung, additive Legacy-Migration,
 Datenschutz und Terminvalidierung sind im Code abgesichert. Komponenten-Smokes,
 PHPCS, echte lokale Bestandsmigration und Aktivieren–Deaktivieren–Aktivieren
-wurden geprüft. Ein Browser-/Mail-Abnahmelauf und echte parallele
-Zwei-Prozess-Anfragen bleiben als Release-Nachweislücken offen.
+wurden geprüft. Vor einem Tag fehlen CI, gemessene No-Regression-Coverage,
+ausgefüllte Browser-/Mail-/Zwei-Prozess-Abnahme und ein reproduzierbar geprüftes
+Release-Artefakt. Das Protokoll liegt unter `docs/manual-acceptance.md`.
 
 ## P0
 
