@@ -3,13 +3,15 @@
 ## Prüfstatus
 
 **Funktionsstand 1.1.0 ohne offene P0-Befunde; Release-Gate in
-Übernahmephase 0 blockiert.** Deaktivierung,
+Übernahmephase 1 blockiert.** Deaktivierung,
 geschützte CSV-Roundtrips, Testmail, Parallelbuchung, additive Legacy-Migration,
 Datenschutz und Terminvalidierung sind im Code abgesichert. Komponenten-Smokes,
 PHPCS, echte lokale Bestandsmigration und Aktivieren–Deaktivieren–Aktivieren
-wurden geprüft. Vor einem Tag fehlen CI, gemessene No-Regression-Coverage,
-ausgefüllte Browser-/Mail-/Zwei-Prozess-Abnahme und ein reproduzierbar geprüftes
-Release-Artefakt. Das Protokoll liegt unter `docs/manual-acceptance.md`.
+wurden geprüft. PR-/Main-CI mit branchgleichen Shared-Plugins ist lokal
+konfiguriert; vor einem Tag fehlen ein grüner Remote-Lauf, gemessene
+No-Regression-Coverage, ausgefüllte Browser-/Mail-/Zwei-Prozess-Abnahme und ein
+reproduzierbar geprüftes Release-Artefakt. Das Protokoll liegt unter
+`docs/manual-acceptance.md`.
 
 ## P0
 
