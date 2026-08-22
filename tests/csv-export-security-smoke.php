@@ -7,9 +7,9 @@ declare(strict_types=1);
 
 define( 'ABSPATH', __DIR__ . '/' );
 
-$flzest_test_can_export = false;
-$flzest_test_nonce_valid = false;
-$flzest_test_nonce_checks = 0;
+$GLOBALS['flzest_test_can_export'] = false;
+$GLOBALS['flzest_test_nonce_valid'] = false;
+$GLOBALS['flzest_test_nonce_checks'] = 0;
 
 function current_user_can( string $capability ): bool {
 	global $flzest_test_can_export;
@@ -57,17 +57,17 @@ $assert_throws(
 	static fn() => flzest_assert_csv_export_request( 'flzest_export_teachers_csv' ),
 	'CSV-Export ohne Berechtigung wurde nicht verweigert.'
 );
-if ( 0 !== $flzest_test_nonce_checks ) {
+if ( 0 !== $GLOBALS['flzest_test_nonce_checks'] ) {
 	throw new RuntimeException( 'Die Nonce wurde vor der Capability geprüft.' );
 }
 
-$flzest_test_can_export = true;
+$GLOBALS['flzest_test_can_export'] = true;
 $assert_throws(
 	static fn() => flzest_assert_csv_export_request( 'flzest_export_teachers_csv' ),
 	'CSV-Export mit ungültiger Nonce wurde nicht verweigert.'
 );
 
-$flzest_test_nonce_valid = true;
+$GLOBALS['flzest_test_nonce_valid'] = true;
 flzest_assert_csv_export_request( 'flzest_export_teachers_csv' );
 
 $plugin_root = dirname( __DIR__ );

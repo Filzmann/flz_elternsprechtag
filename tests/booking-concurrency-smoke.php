@@ -109,6 +109,7 @@ namespace {
 	);
 
 	$wpdb = new FlzEstBookingFakeWpdb();
+	$GLOBALS['wpdb'] = $wpdb;
 	$appointment->lock_for_update();
 	if ( ! str_contains( $wpdb->prepared_query, 'FOR UPDATE' ) ) {
 		throw new RuntimeException( 'Der Terminimport sperrt den Datensatz nicht für konkurrierende Schreibvorgänge.' );
