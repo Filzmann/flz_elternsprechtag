@@ -3,18 +3,16 @@
 ## Prüfstatus
 
 **Funktionsstand 1.1.0 ohne offene P0-Befunde; Release-Gate in
-Übernahmephase 1 blockiert.** Deaktivierung,
+Übernahmephase 2 blockiert.** Deaktivierung,
 geschützte CSV-Roundtrips, Testmail, Parallelbuchung, additive Legacy-Migration,
 Datenschutz und Terminvalidierung sind im Code abgesichert. Komponenten-Smokes,
 PHPCS, echte lokale Bestandsmigration und Aktivieren–Deaktivieren–Aktivieren
-wurden geprüft. PR-/Main-CI mit branchgleichen Shared-Plugins ist lokal
-konfiguriert; vor einem Tag fehlen ein grüner Remote-Lauf, gemessene
-No-Regression-Coverage, ausgefüllte Browser-/Mail-/Zwei-Prozess-Abnahme und ein
-reproduzierbar geprüftes Release-Artefakt. Das Protokoll liegt unter
+wurden geprüft. PR-/Main-CI, branchgleiche Shared-Plugins und die PHP-Ratsche
+von 10,69 Prozent sind remote enforced. Der reproduzierbare ZIP-Builder ist
+konfiguriert. Vor einem Tag fehlen die schrittweise Annäherung an 85 Prozent,
+die Browser-/Mail-/Zwei-Prozess-Abnahme sowie Installation, Upgrade und Rückbau
+aus dem exakten Artefakt. Das Protokoll liegt unter
 `docs/manual-acceptance.md`.
-
-Der PHPCOV-/Xdebug-Job ist konfiguriert. Eine PHP-Baseline darf erst aus dem
-reproduzierbaren Remote-Lauf übernommen werden und bleibt bis dahin `pending`.
 
 ## P0
 
