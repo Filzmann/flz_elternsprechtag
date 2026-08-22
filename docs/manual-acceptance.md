@@ -27,6 +27,18 @@ verwenden. Pro Fall genau ein Ergebnis markieren und Abweichungen begründen.
 
 ## Manuelle Prüffälle
 
+### Technischer ZIP-Teilnachweis vom 22. August 2026
+
+- Umgebung: DDEV, WordPress 7.1, PHP 8.3, MariaDB 10.11.
+- Exaktes Artefakt: `flz_elternsprechtag-1.1.0.zip`, Commit
+  `862320bbd4938ac7357c45b9132097edf56c2cad`, SHA-256
+  `e26eb063d08b5b490e4c755843a74a615807a257fa79192347aa6504f277eb85`.
+- Reproduzierbarkeit, Archivvertrag und installierter Dateibaum sowie
+  WP-CLI-Installation, Aktivstatus, Deaktivierung, Reaktivierung und HTTP 200
+  waren erfolgreich. Snapshot- und Symlink-Rückbau waren erfolgreich.
+- Noch nicht belegt: saubere Frischinstallation, Upgrade aus der relevanten
+  Vorversion mit synthetischem Bestand sowie EST-03 bis EST-09.
+
 | ID | Prüfschritte | Erwartetes Ergebnis | Ergebnis | Warum / Beleg / Abweichung |
 |---|---|---|---|---|
 | EST-01 | Frischinstallation und Upgrade aus der relevanten Vorversion mit synthetischem Bestand durchführen. | Schema 2.0.0 ist vollständig; Daten und Beziehungen bleiben erhalten; Wiederholung ist idempotent. | [ ] erfolgreich [ ] nicht erfolgreich [ ] nicht geprüft | |
