@@ -28,12 +28,33 @@ class FlzEstParent extends FlzPerson
 	public function errors(): array {
 		$errors=[];
 
-		if(!$this->name or $this->name=='') $errors[]='NO_NAME';
-		if( !$this->gdprChecked or $this->gdprChecked == "no") $errors[] ='NO_GDPR';#
-		if( !$this->studentClass or $this->studentClass == "") $errors[] ='NO_STUDENTS_CLASS';
-		if( !$this->studentName or $this->studentName == "") $errors[] ='NO_STUDENTS_NAME';
-		if(!$this->email or $this->email=="") $errors[]='NO_EMAIL';
+		if (!$this->valid_text($this->name, 255)) {
+			$errors[] = 'NO_NAME';
+		}
+		if (!$this->valid_text($this->firstName, 255)) {
+			$errors[] = 'NO_FIRST_NAME';
+		}
+		if (!in_array($this->gender, array(null, '', 'd', 'f', 'm'), true)) {
+			$errors[] = 'NO_GENDER';
+		}
+		if (!in_array($this->gdprChecked, array('on', 'yes'), true)) {
+			$errors[] = 'NO_GDPR';
+		}
+		if (!$this->valid_text($this->studentClass, 32) || !preg_match('/^[\p{L}\p{N} ._-]+$/u', (string) $this->studentClass)) {
+			$errors[] = 'NO_STUDENTS_CLASS';
+		}
+		if (!$this->valid_text($this->studentName, 255)) {
+			$errors[] = 'NO_STUDENTS_NAME';
+		}
+		if (!$this->valid_text($this->email, 255) || !is_email((string) $this->email)) {
+			$errors[] = 'NO_EMAIL';
+		}
 		return $errors;
+	}
+
+	private function valid_text(?string $value, int $maximum): bool {
+		$value = trim((string) $value);
+		return '' !== $value && strlen($value) <= $maximum;
 	}
 
 	protected function prepareDataForSaving(): array {

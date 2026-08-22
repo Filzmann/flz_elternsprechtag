@@ -36,6 +36,9 @@ $gender_options = array(
 	<?php endif; ?>
 	<?php echo $ui->input('text', array('name' => 'parent[name]', 'id' => 'parent_name', 'label' => 'Name', 'value' => (string) ($parent->name ?? ''))); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Renderer escaped die Komponente. ?>
 
+	<?php if (in_array('NO_FIRST_NAME', $errors, true)) : ?>
+		<?php echo $ui->notice('Bitte geben Sie Ihren Vornamen ein', 'error'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Renderer escaped die Notice. ?>
+	<?php endif; ?>
 	<?php echo $ui->input('text', array('name' => 'parent[firstName]', 'id' => 'parent_firstName', 'label' => 'Vorname', 'value' => (string) ($parent->firstName ?? ''))); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Renderer escaped die Komponente. ?>
 
 	<?php if (in_array('NO_EMAIL', $errors, true)) : ?>

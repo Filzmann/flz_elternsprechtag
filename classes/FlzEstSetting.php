@@ -21,12 +21,14 @@ class FlzEstSetting extends FlzWpdbObject {
 	}
 
 	protected static function afterCreate(): void {
+		$mail_from = sanitize_email((string) get_option('admin_email'));
 		$defaults = array(
 			'SlotLength' => '20',
 			'NextParentsDay' => '17.11.23',
 			'ParentsDayBegin' => '16:00',
 			'ParentsDayEnd' => '20:00',
 			'TestMode' => '1',
+			'MailFrom' => is_email($mail_from) ? $mail_from : 'wordpress@example.invalid',
 		);
 		flz_wpdb_objects\FlzWpdbTransaction::run(
 			static function () use ( $defaults ): void {

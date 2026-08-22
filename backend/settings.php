@@ -20,19 +20,29 @@ function flzest_settings_page_content(): void
 	{
 			$posted_settings = map_deep( wp_unslash( $_POST['settings'] ), 'sanitize_text_field' );
 			flz_wpdb_objects\FlzWpdbTransaction::run(
-				static function () use ( $posted_settings ): void {
+			static function () use ( $posted_settings ): void {
 					foreach ( (array) $posted_settings as $id => $value ) {
 						$setting = FlzEstSetting::get_by_id( absint( $id ) );
 						if ( ! $setting instanceof FlzEstSetting ) {
 							throw new UnexpectedValueException( 'Eine zu speichernde Einstellung wurde nicht gefunden.' );
 						}
-						$setting->value = $value;
+						$setting->value = flzest_validate_setting_value($setting->name, (string) $value);
 						$setting->save();
 					}
 				},
 				'Speichern der Elternsprechtags-Einstellungen'
 			);
 			$settings_notice = 'Einstellungen gespeichert.';
+	}
+	if (isset($_POST['flzest_privacy_settings'])) {
+		$retention_enabled = isset($_POST['flzest_retention_enabled']) ? 1 : 0;
+		$retention_months = isset($_POST['flzest_retention_months'])
+			? max(1, min(120, absint(wp_unslash($_POST['flzest_retention_months']))))
+			: 24;
+		$retention_enabled ? flzest_schedule_privacy_cleanup() : flzest_unschedule_privacy_cleanup();
+		update_option('flzest_retention_enabled', $retention_enabled, false);
+		update_option('flzest_retention_months', $retention_months, false);
+		$settings_notice = 'Datenschutz- und Aufbewahrungseinstellungen gespeichert.';
 	}
 	if ( isset( $_POST['flzest_install_demo'] ) ) {
 		$created = flzest_install_demo_content();
@@ -43,7 +53,52 @@ function flzest_settings_page_content(): void
 		);
 	}
 	$settings = FlzEstSetting::get_all_by();
+	$retention_enabled = (bool) get_option('flzest_retention_enabled', 0);
+	$retention_months = flzest_retention_months();
+	$privacy_deleted = isset($_GET['privacy_deleted']) ? absint(wp_unslash($_GET['privacy_deleted'])) : null;
 	include( plugin_dir_path( __FILE__ ) . '../templates/settings.php' );
+}
+
+function flzest_validate_setting_value(string $name, string $value): string
+{
+	$value = trim($value);
+	if ('SlotLength' === $name) {
+		if (!ctype_digit($value) || (int) $value < 5 || (int) $value > 120) {
+			throw new UnexpectedValueException('Die Terminlänge muss zwischen 5 und 120 Minuten liegen.');
+		}
+		return (string) (int) $value;
+	}
+	if (in_array($name, array('ParentsDayBegin', 'ParentsDayEnd'), true)) {
+		$date = DateTimeImmutable::createFromFormat('!H:i', $value);
+		if (!$date || $date->format('H:i') !== $value) {
+			throw new UnexpectedValueException('Beginn und Ende müssen im Format HH:MM angegeben werden.');
+		}
+		return $value;
+	}
+	if ('NextParentsDay' === $name) {
+		foreach (array('!d.m.y', '!d.m.Y') as $format) {
+			$date = DateTimeImmutable::createFromFormat($format, $value);
+			if ($date && $date->format(substr($format, 1)) === $value) {
+				return $date->format('d.m.y');
+			}
+		}
+		throw new UnexpectedValueException('Der Elternsprechtag muss als TT.MM.JJ oder TT.MM.JJJJ angegeben werden.');
+	}
+	if ('TestMode' === $name) {
+		if (!in_array($value, array('0', '1'), true)) {
+			throw new UnexpectedValueException('Der Testmodus muss 0 oder 1 sein.');
+		}
+		return $value;
+	}
+	if ('MailFrom' === $name) {
+		$email = sanitize_email($value);
+		if (!is_email($email)) {
+			throw new UnexpectedValueException('Die Absenderadresse ist ungültig.');
+		}
+		return $email;
+	}
+
+	return sanitize_text_field($value);
 }
 
 /**

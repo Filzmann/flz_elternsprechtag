@@ -16,7 +16,7 @@ $selected_id = $selected->id ? (int) $selected->id : 0;
 		'value'       => (string) ($selected->teacher ? $selected->teacher->id : 0),
 		'placeholder' => '--- bitte auswählen ---',
 		'options'     => flzest_teacher_options($teachers),
-		'attrs'       => array('onchange' => 'this.form.submit();'),
+		'attrs'       => array('data-flz-ui-submit-on-change' => '1'),
 	));
 	// phpcs:enable WordPress.Security.EscapeOutput.OutputNotEscaped
 	?>

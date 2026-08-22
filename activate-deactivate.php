@@ -12,10 +12,7 @@ require_once( "classes/FlzEstSetting.php" );
 function flz_est_elternsprechtag_activate(): void
 {
 	try {
-		FlzEstSetting::create_table();
-		FlzEstTeacher::create_table();
-		FlzEstParent::create_table();
-		FlzEstAppointment::create_table();
+		FlzEstSchemaMigrator::maybe_upgrade();
 
 		add_role(
 			'flz_est_editor',
@@ -29,6 +26,11 @@ function flz_est_elternsprechtag_activate(): void
 			throw new \RuntimeException( 'Die Administratorrolle wurde nicht gefunden.' );
 		}
 		$role->add_cap( 'flz_est' );
+		add_option('flzest_retention_enabled', 0);
+		add_option('flzest_retention_months', 24);
+		if ((bool) get_option('flzest_retention_enabled', 0)) {
+			flzest_schedule_privacy_cleanup();
+		}
 	} catch ( \Throwable $error ) {
 		throw \flzest_operation_error( $error, 'Aktivieren des Elternsprechtags-Plugins' );
 	}
@@ -38,4 +40,9 @@ function flz_est_elternsprechtag_activate(): void
 // Rollen und Capabilities bleiben für eine spätere Reaktivierung erhalten.
 function flz_est_elternsprechtag_deactivate(): void
 {
+	try {
+		flzest_unschedule_privacy_cleanup();
+	} catch (Throwable $error) {
+		flzest_log_error($error, 'Entfernen des Elternsprechtag-Privacy-Jobs bei Deaktivierung');
+	}
 }

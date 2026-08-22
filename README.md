@@ -9,6 +9,24 @@ Härtungs- und Migrationsstand steht in `ROADMAP.md`.
 Prüfung: `./scripts/check-fast`. WordPress-, Datenbank-, Mail- und UI-Verhalten
 muss zusätzlich über die lokale DDEV-Instanz verifiziert werden.
 
+## Neu in 1.1.0
+
+- Die eigene DB-Version 2.0.0 migriert die vier Legacy-Tabellen additiv und
+  idempotent in das aktuelle Modell. Legacy-Tabellen bleiben als Rückfallpfad
+  erhalten; Konflikte brechen die Migration ohne stilles Überschreiben ab.
+- Deaktivierung erhält Tabellen, Daten, Rolle und Capability. Der lokale
+  Aktivieren–Deaktivieren–Aktivieren-Test bewahrt 85 Lehrkräfte, 5 Elternteile
+  und 1004 Termine vollständig.
+- WordPress-Privacy-Exporter und -Eraser decken Eltern-/Kind- und
+  Lehrkräftedaten ab. Automatische Aufbewahrung ist standardmäßig aus; der
+  konfigurierbare Vorschlag beträgt 24 Monate und kann zusätzlich bestätigt
+  manuell ausgeführt werden.
+- Absender, Terminrahmen, Slotlänge und öffentliche Eltern-/Kinddaten werden
+  serverseitig validiert. Ungültige Legacy-Zeitwerte können keine Endlosschleife
+  mehr auslösen.
+- Frontend- und Admin-Assets der gemeinsamen UI werden nur auf passenden
+  Elternsprechtagsseiten angefordert.
+
 ## CSV-Portabilität
 
 Beide Adminbereiche exportieren CSV direkt über Capability- und Nonce-
@@ -32,3 +50,11 @@ Unversionierte Altdateien und der frühere vier-spaltige Vorbelegungsimport
 werden bewusst nicht als v1 interpretiert. Sie werden ohne Datenänderung
 abgewiesen; vor einer Freigabe ist zu entscheiden, ob dafür ein eigener
 versionierter `prebooking`-Vertrag oder ein einmaliger Konverter benötigt wird.
+
+## Datenschutz
+
+Die automatische Löschung ist nach Installation und Upgrade deaktiviert. Wird
+sie bewusst eingeschaltet, gilt eine Frist von 1 bis 120 Monaten; voreingestellt
+sind 24 Monate. Der WordPress-Eraser gibt gebuchte Termine zuerst frei und
+löscht anschließend Eltern-/Kinddaten. Lehrkräftedaten werden anonymisiert,
+damit das Terminschema konsistent bleibt.

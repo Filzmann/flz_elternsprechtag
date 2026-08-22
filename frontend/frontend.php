@@ -122,9 +122,15 @@ function flzest_has_appointment_unavailable_cause( Throwable $error ): bool {
 }
 
 function sendMails( FlzEstAppointment $selected ): void {
+	if (!$selected->teacher instanceof FlzEstTeacher || !$selected->parent instanceof FlzEstParent) {
+		throw new UnexpectedValueException('Für den E-Mail-Versand fehlen Lehrkraft oder Elterndatensatz.');
+	}
 	// Prepare email data
-	$teacherEmail = $selected->teacher->email;
-	$parentEmail = $selected->parent->email;
+	$teacherEmail = sanitize_email((string) $selected->teacher->email);
+	$parentEmail = sanitize_email((string) $selected->parent->email);
+	if (!is_email($teacherEmail) || !is_email($parentEmail)) {
+		throw new UnexpectedValueException('Eine Empfängeradresse der Elternsprechtags-E-Mails ist ungültig.');
+	}
 
 	if (intval(FlzEstSetting::get_value_by_name( "TestMode" )))
 	{
@@ -133,13 +139,17 @@ function sendMails( FlzEstAppointment $selected ): void {
 
 	}
 	// Prepare email headers
-	$headers[] = 'From: Tagore Gymnasium <post@tagore-gymnasium.de>';
+	$from_email = sanitize_email(FlzEstSetting::get_value_by_name('MailFrom'));
+	if (!is_email($from_email)) {
+		throw new UnexpectedValueException('Die konfigurierte Absenderadresse ist ungültig.');
+	}
+	$headers[] = 'From: ' . wp_specialchars_decode(get_bloginfo('name'), ENT_QUOTES) . ' <' . $from_email . '>';
 	$headers[] = 'Content-Type: text/plain; charset=UTF-8';
 	// Construct your email message
 	$teachers_message = "Hallo ".$selected->teacher->get_gender_as_anrede()." ".$selected->teacher->firstName." ".$selected->teacher->name."\n";
 	$teachers_message.= "Es gibt eine neue Buchung für den Elternsprechtag am ". flz_ui_format_date( $selected->start )."\n";
-	$teachers_message.= "Beginn: ".date('H:i', $selected->start)."\n";
-	$teachers_message.= "Ende: ".date('H:i', $selected->end)."\n";
+	$teachers_message.= "Beginn: ".wp_date('H:i', $selected->start)."\n";
+	$teachers_message.= "Ende: ".wp_date('H:i', $selected->end)."\n";
 	$teachers_message.= "Name: ".$selected->parent->get_gender_as_anrede()." ".$selected->parent->firstName." ".$selected->parent->name."\n";
 	$teachers_message.= "Name Schüler:in: ".$selected->parent->studentName."\n";
 	$teachers_message.= "Klasse Schüler:in: ".$selected->parent->studentClass."\n";
@@ -150,17 +160,21 @@ function sendMails( FlzEstAppointment $selected ): void {
 
 
 	// Baue den Aktivierungslink
-	$link=get_permalink() . '?appointment_id=' . $selected->id . '&token=' . $selected->confirmationToken;
+	$permalink = get_permalink();
+	if (!is_string($permalink) || '' === $permalink) {
+		throw new RuntimeException('Die URL der Elternsprechtagsseite konnte nicht bestimmt werden.');
+	}
+	$link=add_query_arg(array('appointment_id' => (int) $selected->id, 'token' => (string) $selected->confirmationToken), $permalink);
 
 
 	$parents_message = "Hallo ".$selected->parent->get_gender_as_anrede()." ".$selected->parent->firstName." ".$selected->parent->name."\n";
 	$parents_message.= "Sie haben zum Elternsprechtag des Tagore-Gymnasiums am ". flz_ui_format_date( $selected->start )."\n";
 	$parents_message.= "einen Termin bei ".$selected->teacher->get_gender_as_anrede()." ".$selected->teacher->firstName." ".$selected->teacher->name."\n";
 	$parents_message.= "Für ".$selected->parent->studentName." gebucht"."\n";
-	$parents_message.= "Beginn: ".date('H:i', $selected->start)."\n";
-	$parents_message.= "Ende: ".date('H:i', $selected->end)."\n";
+	$parents_message.= "Beginn: ".wp_date('H:i', $selected->start)."\n";
+	$parents_message.= "Ende: ".wp_date('H:i', $selected->end)."\n";
 	$parents_message.= "Achtung, sie müssen den Termin durch Klicken dieses Links bestätigen!"."\n"."\n";
-	$parents_message.= "<a href='". esc_url($link) ."'>". $link ."</a>" . "\n" . "\n";
+	$parents_message.= esc_url_raw($link) . "\n\n";
 	$parents_message.= "Beste Grüße";
 	//echo $parents_message."<hr>";
 	// Send the email
@@ -322,3 +336,17 @@ function flzest_register_blocks(): void {
 }
 
 add_action( 'init', 'flzest_register_blocks' );
+add_action('wp_enqueue_scripts', 'flzest_maybe_enqueue_frontend_ui_assets');
+
+function flzest_maybe_enqueue_frontend_ui_assets(): void
+{
+	global $post;
+
+	$content = is_object($post) && isset($post->post_content) ? (string) $post->post_content : '';
+	if (
+		(has_shortcode($content, 'flzest') || has_block('flz/elternsprechtag', $content))
+		&& function_exists('flz_ui_components_enqueue_assets')
+	) {
+		flz_ui_components_enqueue_assets();
+	}
+}

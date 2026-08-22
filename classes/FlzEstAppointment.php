@@ -60,9 +60,7 @@ class flzEstAppointment extends FlzWpdbObject
             confirmationToken VARCHAR(255) NULL,
             teacher_id INT(11) NOT NULL,
             parent_id INT(11) NULL,
-            PRIMARY KEY (id),
-            FOREIGN KEY (teacher_id) REFERENCES " . FlzEstTeacher::table_name() . "(id) ON DELETE CASCADE ON UPDATE CASCADE,
-            FOREIGN KEY (parent_id) REFERENCES " . FlzEstParent::table_name() . "(id) ON DELETE SET NULL ON UPDATE CASCADE
+            PRIMARY KEY (id)
         )";
 	}
 
@@ -202,6 +200,13 @@ class flzEstAppointment extends FlzWpdbObject
 				'Der zu importierende Termin existiert nicht mehr.'
 			);
 		}
+	}
+
+	public static function get_by_id_for_update(int $id): ?self {
+		$sql = 'SELECT * FROM ' . static::table_name() . ' WHERE id = %d FOR UPDATE';
+		$models = static::query_models($sql, array($id), 'Sperren eines Elternsprechtagstermins');
+
+		return $models[0] ?? null;
 	}
 
 	public function errors(): array {
