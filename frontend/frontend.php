@@ -68,13 +68,7 @@ function flzest_probeunterricht_form( $atts ): false|string {
 		if ( empty( $selected->errors() ) ) {
 			$selected->confirmationToken = wp_generate_password( 48, false, false );
 			$selected->confirmationExpiration = time() + 2 * DAY_IN_SECONDS;
-			flz_wpdb_objects\FlzWpdbTransaction::run(
-				static function () use ( $selected ): void {
-					$selected->parent->save();
-					$selected->save();
-				},
-				'Speichern einer Elternsprechtagsbuchung mit Elternangaben'
-			);
+			flzest_persist_booking( $selected );
 
 			try {
 				sendMails( $selected );
@@ -85,6 +79,9 @@ function flzest_probeunterricht_form( $atts ): false|string {
 			}
 		}
 	} catch ( Throwable $error ) {
+		if ( flzest_has_appointment_unavailable_cause( $error ) ) {
+			return '<p class="flz-est-error">Dieser Termin wurde zwischenzeitlich gebucht. Bitte wählen Sie einen anderen Termin.</p>';
+		}
 		flzest_log_error( $error, 'Verarbeiten der öffentlichen Elternsprechtagsseite' );
 		return '<p class="flz-est-error">Die Anfrage konnte wegen eines technischen Fehlers nicht verarbeitet werden. Bitte später erneut versuchen.</p>';
 	}
@@ -94,6 +91,34 @@ function flzest_probeunterricht_form( $atts ): false|string {
 	include plugin_dir_path( __FILE__ ) . '../templates/frontend-form.php';
 
 	return (string) ob_get_clean();
+}
+
+/**
+ * Speichert Elternangaben und reserviert den Termin in derselben Transaktion.
+ */
+function flzest_persist_booking( FlzEstAppointment $selected ): void {
+	flz_wpdb_objects\FlzWpdbTransaction::run(
+		static function () use ( $selected ): void {
+			$selected->parent->save();
+			$selected->claim_for_parent_if_available();
+		},
+		'Speichern einer Elternsprechtagsbuchung mit Elternangaben'
+	);
+}
+
+/**
+ * Erkennt den fachlichen Konflikt auch durch die Transaktions-Exceptionkette.
+ */
+function flzest_has_appointment_unavailable_cause( Throwable $error ): bool {
+	$current = $error;
+	do {
+		if ( $current instanceof FlzEstAppointmentUnavailableException ) {
+			return true;
+		}
+		$current = $current->getPrevious();
+	} while ( $current instanceof Throwable );
+
+	return false;
 }
 
 function sendMails( FlzEstAppointment $selected ): void {

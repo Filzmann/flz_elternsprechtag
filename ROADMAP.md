@@ -2,36 +2,40 @@
 
 ## Prüfstatus
 
-**Nicht regelkonform / P0.** Das Plugin schützt viele Admin-POST-Pfade zentral
-mit Capability und Nonce und escaped die geprüften Templates überwiegend.
-Dem stehen unmittelbare Datenverlust- und Datenschutzrisiken gegenüber. Der
-vorhandene PHPUnit-Test hat im Repository keinen installierten Runner; eine
-WordPress-/Datenbankprüfung wurde nicht ausgeführt.
+**Teilweise regelkonform / P1.** Die unmittelbaren P0-Risiken bei Deaktivierung,
+CSV-Downloads, Testmail und Parallelbuchung sind im Code abgesichert. Die
+Komponenten-Smokes, PHPCS sowie die lokale WordPress-Einbindung wurden geprüft;
+ein PHPUnit-Runner, echte Zwei-Prozess- und vollständige Datenbank-
+Integrationstests fehlen noch.
 
 ## P0
 
-1. Deaktivierung nichtdestruktiv machen: keine Tabellen, Rollen oder
-   Capabilities beim bloßen Deaktivieren löschen. Separaten, standardmäßig
-   datenbewahrenden Uninstall-Vertrag erst nach Produktentscheidung ergänzen.
-   Abnahme: Aktivieren–Deaktivieren–Aktivieren erhält synthetische Termine und
-   Elternangaben vollständig.
-2. Lehrkräfte- und Terminexport nicht mehr per
-   `flz_wpdb_objects_create_csv_file()` als öffentliche `teachers.csv` bzw.
-   `appointments.csv` erzeugen. Capability- und nonce-geschützten Direktdownload
-   verwenden; keine Datei darf im Upload-Verzeichnis verbleiben.
-3. Private Gmail-Adresse aus dem Testmodus entfernen. Mailtests ausschließlich
-   lokal über Mail-Capture oder einen ausdrücklich konfigurierten Filter mit
-   synthetischen Empfängern durchführen.
-4. Terminbuchung gegen Parallelzugriffe sichern. Auswahl, Freiheitsprüfung,
-   Elternspeicherung und Terminbelegung in einer atomaren Operation mit
-   Datenbankinvariante ausführen. Abnahme: Zwei parallele Buchungen desselben
-   Slots ergeben genau eine Buchung und keinen verwaisten Elterndatensatz.
+1. **Codevertrag erledigt:** Deaktivierung löscht keine Tabellen, Rollen oder
+   Capabilities mehr; ein Komponenten-Smoke verhindert die destruktiven
+   Aufrufe. Die vollständige Aktivieren–Deaktivieren–Aktivieren-Abnahme mit
+   synthetischen Bestandsdaten bleibt als DDEV-Integrationstest offen.
+2. **Codevertrag erledigt:** Lehrkräfte- und Terminexport verwenden einen
+   Capability- und nonce-geschützten Direktdownload; der Elternsprechtag legt
+   keine neuen Exportdateien im Upload-Verzeichnis an. Die beiden lokal
+   vorhandenen Altdateien wurden entfernt und liefern anschließend HTTP 404.
+3. **Erledigt:** Der Testmodus verwendet ausschließlich den reservierten,
+   synthetischen Empfänger `private-test@example.test`; ein Smoke-Test sperrt
+   Gmail-/Googlemail-Adressen. Lokale Zustellung wird über DDEV-Mailpit geprüft.
+4. **Codevertrag erledigt:** Elternspeicherung und Terminbelegung laufen in
+   einer Transaktion; das Termin-Update greift atomar nur bei weiterhin leerer
+   `parent_id`. Ein Konkurrenztest belegt Erfolgs- und Konfliktfall. Ein echter
+   Zwei-Prozess-DDEV-Test bleibt als Integrationsnachweis offen.
 
 ## P1
 
-1. Lehrkräfte sowie Termine/Buchungen jeweils als versionierten, vollständigen
-   CSV-Roundtrip mit Dry-Run, Referenzprüfung und atomarem Import definieren;
-   Einstellungen erhalten nach fachlicher Entscheidung einen Portabilitätspfad.
+1. **Codevertrag erledigt:** Lehrkräfte sowie Termine/Buchungen besitzen einen
+   versionierten v1-Roundtrip mit obligatorischem Dry-Run, datei- und
+   benutzergebundenem Prüfnachweis, Referenzprüfung und atomarem Import.
+   Lehrkräfte werden nichtdestruktiv aktualisiert/ergänzt; Termine verlangen
+   einen vollständigen Snapshot. Ein manueller Import mit synthetischem
+   Komplettbestand, die Produktentscheidung zum früheren vier-spaltigen
+   Vorbelegungsformat sowie ein Portabilitätspfad für Einstellungen bleiben
+   offen.
 2. Schema-Version und additive, idempotente Upgrades einführen; bereits
    ausgelieferte Migrationen nicht verändern. Frischinstallation, Upgrade,
    Wiederholung und ungültige Altdaten testen.

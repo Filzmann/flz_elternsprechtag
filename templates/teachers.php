@@ -99,6 +99,9 @@ $flzest_teacher_row = static function ( FlzEstTeacher $teacher ) use ( $flzest_u
 ?>
 <div class="wrap">
 	<h1>Lehrpersonal bearbeiten</h1>
+	<?php if ( ! empty( $teacher_csv_notice ) ) : ?>
+		<?php echo $flzest_ui->notice( $teacher_csv_notice['message'], $teacher_csv_notice['type'] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Renderer escaped die Notice. ?>
+	<?php endif; ?>
 	<p>
 		<?php echo $flzest_ui->button_new( array( 'label' => 'Neue Lehrkraft anlegen', 'attrs' => array( 'data-flz-ui-show-new-row' => 'flzest-teacher-new' ) ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Renderer escaped die Komponente. ?>
 	</p>
@@ -108,17 +111,31 @@ $flzest_teacher_row = static function ( FlzEstTeacher $teacher ) use ( $flzest_u
 	echo $flzest_ui->csv_panel(
 		array(
 			'title'       => 'Lehrkräfte CSV',
-			'description' => 'Download als Vorlage oder Sammel-Upload. Achtung: Beim Upload werden alle bereits vorhandenen Lehrer*innen ersetzt.',
-			'format'      => 'Geschlecht(m/f); Name; Vorname; Email',
+			'description' => 'Versionierter Export und obligatorischer Dry-Run. Vorhandene Lehrkräfte werden über ihre E-Mail-Adresse aktualisiert; nicht aufgeführte Lehrkräfte bleiben erhalten.',
+			'format'      => 'format_version; record_type; gender; last_name; first_name; email',
 			'export'      => array(
-				'href'  => $csvFile,
+				'href'  => $teacher_csv_export_url,
 				'label' => 'Lehrkräfte-CSV herunterladen',
 			),
 			'upload'      => array(
 				'nonce'        => 'flzest_admin_action',
 				'file_name'    => 'teacher-csv',
 				'file_id'      => 'teacher-csv',
-				'button_label' => 'Lehrkräfte-CSV hochladen',
+				'button_label' => 'Lehrkräfte-CSV prüfen (Dry-Run)',
+				'submit_name'  => 'submit_csv_dry_run',
+			),
+		)
+	);
+	echo $flzest_ui->csv_panel(
+		array(
+			'title'       => 'Geprüfte Lehrkräfte-CSV importieren',
+			'description' => 'Nach einem erfolgreichen Dry-Run dieselbe unveränderte Datei erneut auswählen. Der Prüfnachweis gilt 15 Minuten.',
+			'upload'      => array(
+				'nonce'        => 'flzest_admin_action',
+				'file_name'    => 'teacher-csv',
+				'file_id'      => 'teacher-csv-import',
+				'button_label' => 'Geprüfte Lehrkräfte-CSV importieren',
+				'submit_name'  => 'submit_csv',
 			),
 		)
 	);

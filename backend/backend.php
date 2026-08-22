@@ -57,3 +57,5 @@ require_once ("appointments.php");
 
 // Hinzufügen der Backend-Menüs
 add_action( 'admin_menu', 'flzest_elternsprechtag_menu' );
+add_action( 'admin_post_flzest_export_teachers_csv', 'flzest_export_teachers_csv' );
+add_action( 'admin_post_flzest_export_appointments_csv', 'flzest_export_appointments_csv' );

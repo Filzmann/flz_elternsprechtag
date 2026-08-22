@@ -1,10 +1,16 @@
 <?php
+// Exception-Texte sind interne Logdaten; HTML-Escaping erfolgt erst an der UI-Grenze.
+// phpcs:disable WordPress.Security.EscapeOutput.ExceptionNotEscaped
+
 use flz_wpdb_objects\FlzWpdbObject;
 use flz_wpdb_objects\FlzWpdbObjectsException;
 
 require_once( "FlzEstTeacher.php" );
 require_once( "FlzEstEstParent.php" );
 
+class FlzEstAppointmentUnavailableException extends RuntimeException
+{
+}
 
 class flzEstAppointment extends FlzWpdbObject
 {
@@ -112,6 +118,90 @@ class flzEstAppointment extends FlzWpdbObject
 			'confirmationToken' => $this->confirmationToken
 
 		];
+	}
+
+	/**
+	 * Belegt den Termin atomar, sofern er in der Datenbank weiterhin frei ist.
+	 */
+	public function claim_for_parent_if_available(): void {
+		global $wpdb;
+
+		if ( empty( $this->id ) || empty( $this->parent?->id ) ) {
+			throw FlzWpdbObjectsException::invalid_model_state(
+				static::class,
+				'Termin und Elterndatensatz müssen vor der Reservierung gespeichert sein.'
+			);
+		}
+
+		$table = static::table_name();
+		try {
+			$result = $wpdb->update(
+				$table,
+				$this->prepareDataForSaving(),
+				array(
+					'id'        => $this->id,
+					'parent_id' => null,
+				)
+			);
+		} catch ( Throwable $error ) {
+			throw FlzWpdbObjectsException::operation(
+				'Atomares Reservieren eines Elternsprechtagstermins',
+				$table,
+				$error
+			);
+		}
+
+		if ( false === $result ) {
+			throw FlzWpdbObjectsException::database(
+				'Atomares Reservieren eines Elternsprechtagstermins',
+				$table,
+				(string) $wpdb->last_error
+			);
+		}
+		if ( 0 === $result ) {
+			throw new FlzEstAppointmentUnavailableException( 'Der Termin ist nicht mehr frei.' );
+		}
+		if ( 1 !== $result ) {
+			throw FlzWpdbObjectsException::invalid_model_state(
+				static::class,
+				'Die Reservierung hat unerwartet mehr als einen Termin verändert.'
+			);
+		}
+	}
+
+	/**
+	 * Sperrt diesen Termin bis zum Ende der laufenden Datenbanktransaktion.
+	 */
+	public function lock_for_update(): void {
+		global $wpdb;
+
+		if ( empty( $this->id ) ) {
+			throw FlzWpdbObjectsException::invalid_model_state(
+				static::class,
+				'Ein ungespeicherter Termin kann nicht gesperrt werden.'
+			);
+		}
+
+		$table = static::table_name();
+		try {
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Tabellenname stammt ausschließlich aus dem intern validierten Modellvertrag.
+			$query = $wpdb->prepare( "SELECT id FROM $table WHERE id = %d FOR UPDATE", $this->id );
+			// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Query wurde unmittelbar zuvor mit fester interner Tabelle vorbereitet.
+			$locked_id = $wpdb->get_var( $query );
+		} catch ( Throwable $error ) {
+			throw FlzWpdbObjectsException::operation(
+				'Sperren eines Elternsprechtagstermins für den CSV-Import',
+				$table,
+				$error
+			);
+		}
+
+		if ( (int) $locked_id !== $this->id ) {
+			throw FlzWpdbObjectsException::invalid_model_state(
+				static::class,
+				'Der zu importierende Termin existiert nicht mehr.'
+			);
+		}
 	}
 
 	public function errors(): array {

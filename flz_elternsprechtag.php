@@ -43,6 +43,7 @@ function flz_est_bootstrap(): bool {
 	}
 
 	require_once plugin_dir_path( __FILE__ ) . 'error-handling.php';
+	require_once plugin_dir_path( __FILE__ ) . 'includes/csv-contract.php';
 	require_once plugin_dir_path( __FILE__ ) . 'activate-deactivate.php';
 	require_once plugin_dir_path( __FILE__ ) . 'backend/backend.php';
 	require_once plugin_dir_path( __FILE__ ) . 'frontend/frontend.php';

@@ -34,22 +34,8 @@ function flz_est_elternsprechtag_activate(): void
 	}
 }
 
-// Funktion zum Löschen der Tabellen beim Deaktivieren des Plugins
+// Deaktivierung trennt nur die WordPress-Hooks des Plugins. Persistente Daten,
+// Rollen und Capabilities bleiben für eine spätere Reaktivierung erhalten.
 function flz_est_elternsprechtag_deactivate(): void
 {
-	try {
-		flzEstAppointment::delete_table();
-		FlzEstTeacher::delete_table();
-		FlzEstParent::delete_table();
-		FlzEstSetting::delete_table();
-
-		remove_role( 'flz_est_editor' );
-		$role = get_role( 'administrator' );
-		if ( ! $role instanceof \WP_Role ) {
-			throw new \RuntimeException( 'Die Administratorrolle wurde nicht gefunden.' );
-		}
-		$role->remove_cap( 'flz_est' );
-	} catch ( \Throwable $error ) {
-		throw \flzest_operation_error( $error, 'Deaktivieren des Elternsprechtags-Plugins' );
-	}
 }

@@ -20,7 +20,7 @@ function flzest_teachers_page_content(): void
 {
 	flzest_assert_admin_request();
 	processTeacherForm();
-	processTeacherCsvFile();
+	$teacher_csv_notice = processTeacherCsvFile();
 	handleTeacherDeletion();
 
 	$teachers = FlzEstTeacher::get_all_by( order_by: 'name' );
@@ -59,21 +59,42 @@ function flzest_teachers_page_content(): void
 			return $result;
 		}
 	);
-	$csvFile = flz_wpdb_objects_create_csv_file(
-		array( 'Geschlecht(m/f)', 'Name', 'Vorname', 'Email' ),
-		array_map(
-			static fn( FlzEstTeacher $teacher ): array => array(
-				$teacher->gender,
-				$teacher->name,
-				$teacher->firstName,
-				$teacher->email,
-			),
-			$teachers
-		),
-		'teachers.csv'
+	$teacher_csv_export_url = wp_nonce_url(
+		admin_url( 'admin-post.php?action=flzest_export_teachers_csv' ),
+		'flzest_export_teachers_csv'
 	);
 
 	include( plugin_dir_path( __FILE__ ) . '../templates/teachers.php' );
+}
+
+/**
+ * Sendet alle Lehrkräfte als geschützten CSV-Direktdownload.
+ */
+function flzest_export_teachers_csv(): void
+{
+	flzest_assert_csv_export_request( 'flzest_export_teachers_csv' );
+
+	try {
+		$teachers = FlzEstTeacher::get_all_by( order_by: 'name' );
+		flz_wpdb_objects_send_csv_download(
+			flzest_teacher_csv_header(),
+			array_map(
+				static fn( FlzEstTeacher $teacher ): array => array(
+					FLZEST_CSV_VERSION,
+					'teacher',
+					$teacher->gender,
+					$teacher->name,
+					$teacher->firstName,
+					$teacher->email,
+				),
+				$teachers
+			),
+			'teachers.csv'
+		);
+	} catch ( Throwable $error ) {
+		flzest_log_error( $error, 'Exportieren der Lehrkräfte als CSV' );
+		wp_die( esc_html__( 'Die Lehrkräfte-CSV konnte nicht erstellt werden.', 'flz-elternsprechtag' ) );
+	}
 }
 /**
  * Speichert das Lehrkräfteformular.
@@ -101,39 +122,145 @@ function processTeacherForm(): void
 	);
 }
 
-function processTeacherCsvFile(): void
+/**
+ * @return array{type:string,message:string}|null
+ */
+function processTeacherCsvFile(): array|null
 {
 	try {
-		$isFormSubmitted = isset($_POST['submit_csv']);
-		if (!$isFormSubmitted) {
-			return;
+		$is_dry_run = isset( $_POST['submit_csv_dry_run'] );
+		$is_import = isset( $_POST['submit_csv'] );
+		if ( ! $is_dry_run && ! $is_import ) {
+			return null;
 		}
-		$teacher_rows = array();
-		foreach ( flz_wpdb_objects_read_uploaded_csv( 'teacher-csv', 'Importieren der Lehrkräfte-CSV-Datei' ) as $line ) {
-			if ( count( $line ) < 4 ) {
-				throw new UnexpectedValueException( 'Eine Lehrkräfte-CSV-Zeile enthält weniger als vier Spalten.' );
-			}
-			$teacher_rows[] = array(
-				'gender' => sanitize_text_field( $line[0] ),
-				'name' => sanitize_text_field( $line[1] ),
-				'firstName' => sanitize_text_field( $line[2] ),
-				'email' => sanitize_email( $line[3] ),
+
+		$teacher_rows = flzest_parse_teacher_csv(
+			flz_wpdb_objects_read_uploaded_csv( 'teacher-csv', 'Importieren der Lehrkräfte-CSV-Datei', false )
+		);
+		$plan = flzest_plan_teacher_csv_import( $teacher_rows );
+		$proof_hash = flzest_teacher_csv_proof_hash( $teacher_rows );
+
+		if ( $is_dry_run ) {
+			set_transient( flzest_teacher_csv_proof_key(), $proof_hash, 15 * MINUTE_IN_SECONDS );
+
+			return array(
+				'type' => 'success',
+				'message' => sprintf(
+					'Dry-Run erfolgreich: %d Lehrkräfte werden aktualisiert, %d neu angelegt, %d bestehende bleiben zusätzlich erhalten.',
+					$plan['updated'],
+					$plan['created'],
+					$plan['preserved']
+				),
 			);
 		}
+
+		$stored_proof = get_transient( flzest_teacher_csv_proof_key() );
+		if ( ! is_string( $stored_proof ) || ! hash_equals( $stored_proof, $proof_hash ) ) {
+			throw new UnexpectedValueException( 'Diese Datei muss vor dem Import erneut erfolgreich als Dry-Run geprüft werden.' );
+		}
+
 		flz_wpdb_objects\FlzWpdbTransaction::run(
-			static function () use ( $teacher_rows ): void {
-				foreach ( FlzEstTeacher::get_all_by() as $existing_teacher ) {
-					$existing_teacher->delete();
+			static function () use ( $plan, $proof_hash, $teacher_rows ): void {
+				if ( ! hash_equals( $proof_hash, flzest_teacher_csv_proof_hash( $teacher_rows ) ) ) {
+					throw new UnexpectedValueException( 'Der Lehrkräftebestand hat sich seit dem Dry-Run verändert.' );
 				}
-				foreach ( $teacher_rows as $teacher_data ) {
-					( new FlzEstTeacher( $teacher_data ) )->save();
-				}
+				flzest_apply_teacher_csv_import_plan( $plan );
 			},
-			'Ersetzen aller Lehrkräfte durch einen CSV-Import'
+			'Aktualisieren und Ergänzen der Lehrkräfte durch einen CSV-Import'
+		);
+		delete_transient( flzest_teacher_csv_proof_key() );
+
+		return array(
+			'type' => 'success',
+			'message' => sprintf(
+				'Import abgeschlossen: %d Lehrkräfte aktualisiert, %d neu angelegt.',
+				$plan['updated'],
+				$plan['created']
+			),
 		);
 	} catch (Throwable $error) {
-		throw flzest_operation_error( $error, 'Importieren der Lehrkräfte-CSV-Datei' );
+		flzest_log_error( $error, 'Prüfen oder Importieren der Lehrkräfte-CSV-Datei' );
+
+		return array(
+			'type' => 'error',
+			'message' => $error instanceof UnexpectedValueException
+				? $error->getMessage()
+				: 'Die Lehrkräfte-CSV konnte nicht sicher verarbeitet werden.',
+		);
 	}
+}
+
+/**
+ * @param array{teachers:array<int,FlzEstTeacher>,created:int,updated:int,preserved:int} $plan
+ */
+function flzest_apply_teacher_csv_import_plan( array $plan ): void {
+	foreach ( $plan['teachers'] as $teacher ) {
+		$teacher->save();
+	}
+}
+
+/**
+ * @param array<int,array{gender:string,name:string,firstName:string,email:string}> $teacher_rows
+ * @return array{teachers:array<int,FlzEstTeacher>,created:int,updated:int,preserved:int}
+ */
+function flzest_plan_teacher_csv_import( array $teacher_rows ): array {
+	$existing_by_email = array();
+	foreach ( FlzEstTeacher::get_all_by() as $teacher ) {
+		$email = strtolower( (string) $teacher->email );
+		if ( isset( $existing_by_email[ $email ] ) ) {
+			throw new UnexpectedValueException( 'Die vorhandenen Lehrkräftedaten enthalten eine doppelte E-Mail-Adresse.' );
+		}
+		$existing_by_email[ $email ] = $teacher;
+	}
+
+	$teachers = array();
+	$created = 0;
+	$updated = 0;
+	foreach ( $teacher_rows as $teacher_data ) {
+		$email = $teacher_data['email'];
+		if ( isset( $existing_by_email[ $email ] ) ) {
+			$teacher = $existing_by_email[ $email ];
+			$teacher->assignPostData( $teacher_data, array( 'name', 'firstName', 'gender', 'email' ) );
+			unset( $existing_by_email[ $email ] );
+			++$updated;
+		} else {
+			$teacher = new FlzEstTeacher( $teacher_data );
+			++$created;
+		}
+		$teachers[] = $teacher;
+	}
+
+	return array(
+		'teachers' => $teachers,
+		'created' => $created,
+		'updated' => $updated,
+		'preserved' => count( $existing_by_email ),
+	);
+}
+
+/**
+ * Bindet die Prüfung an Dateiinhalt, Benutzer und aktuellen Lehrkräftebestand.
+ *
+ * @param array<int,array{gender:string,name:string,firstName:string,email:string}> $teacher_rows
+ */
+function flzest_teacher_csv_proof_hash( array $teacher_rows ): string {
+	$current_ids = array_map(
+		static fn( FlzEstTeacher $teacher ): array => array(
+			'id' => (int) $teacher->id,
+			'gender' => (string) $teacher->gender,
+			'name' => (string) $teacher->name,
+			'firstName' => (string) $teacher->firstName,
+			'email' => strtolower( (string) $teacher->email ),
+		),
+		FlzEstTeacher::get_all_by()
+	);
+	usort( $current_ids, static fn( array $left, array $right ): int => $left['id'] <=> $right['id'] );
+
+	return hash( 'sha256', serialize( array( $teacher_rows, $current_ids ) ) );
+}
+
+function flzest_teacher_csv_proof_key(): string {
+	return 'flzest_teacher_csv_proof_' . get_current_user_id();
 }
 
 
