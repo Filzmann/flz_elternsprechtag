@@ -4,6 +4,9 @@ Alle wesentlichen Änderungen an `flz_elternsprechtag` werden in dieser Datei
 dokumentiert. Ein Datum wird erst bei einer tatsächlichen Veröffentlichung
 ergänzt.
 
+## Unreleased
+
+
 ## 1.2.0-rc.2
 
 - Schulgebundene Texte durch neutrale Plugin-, Buchungs- und Kontakttexte ersetzt.
