@@ -1,6 +1,6 @@
 {
   "name": "tagore-gymnasium/flz-elternsprechtag",
-  "description": "WordPress appointment management for Tagore parent consultation days.",
+  "description": "School-independent WordPress parent consultation appointments with synthetic demo seeds.",
   "type": "wordpress-plugin",
   "license": "GPL-2.0-or-later",
   "require-dev": {

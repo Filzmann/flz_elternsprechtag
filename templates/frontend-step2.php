@@ -15,7 +15,7 @@ $ui = flz_ui();
 	<?php else : ?>
 		<?php foreach ($appointments as $appointment) : ?>
 			<?php
-			$time = date('H:i', $appointment->start);
+			$time = wp_date('H:i', $appointment->start);
 			// phpcs:disable WordPress.Security.EscapeOutput.OutputNotEscaped -- flz_ui renderer escaped den Button inklusive Label, Icon-Text und Attribute.
 			echo $ui->button(array(
 				'label'    => $time,

@@ -52,8 +52,8 @@ $flzest_appointment_row = static function ( FlzEstAppointment $appointment ) use
 				'hidden' => array( 'id' => $appointment->id ),
 			),
 			'cells' => array(
-				array( 'view' => date( 'H:i', $appointment->start ) ),
-				array( 'view' => date( 'H:i', $appointment->end ) ),
+				array( 'view' => wp_date( 'H:i', $appointment->start ) ),
+				array( 'view' => wp_date( 'H:i', $appointment->end ) ),
 				array(
 					'view'  => $teacher_label,
 					'attrs' => array( 'class' => 'lehrkraft' ),

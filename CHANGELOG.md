@@ -4,8 +4,16 @@ Alle wesentlichen Änderungen an `flz_elternsprechtag` werden in dieser Datei
 dokumentiert. Ein Datum wird erst bei einer tatsächlichen Veröffentlichung
 ergänzt.
 
-## Unreleased
+## 1.2.0-rc.1
 
+- Schulgebundene Texte durch neutrale Plugin-, Buchungs- und Kontakttexte ersetzt.
+- Synthetische Demoseeds mit eigenem Herkunftsnachweis, idempotentem Anlegen
+  und bestätigtem Entfernen über die Einstellungen ergänzt. Veränderte oder
+  zusätzlich referenzierte Demodaten blockieren die Entfernung vollständig.
+- Frühere Einstellungen werden beim Entfernen wiederhergestellt, spätere
+  manuelle Änderungen bleiben erhalten. Die Seed-Terminsuche verwendet
+  vollständige Zeitstempel statt einer fehleranfälligen Datumsinterpretation.
+- WordPress-Integrationstests für Seed-Lebenszyklus und geschützte Adminaktionen ergänzt.
 - Reproduzierbare PR-/Main-CI für PHP 8.1 und 8.5 ergänzt.
 - Branchgleicher Checkout beider Shared-Plugins mit sicherem `main`-Fallback
   ergänzt.

@@ -11,8 +11,8 @@ $gender_options = array(
 );
 ?>
 <p>
-	Für Ihren Termin am <?php echo esc_html(flz_ui_format_date($selected->start)); ?>
-	um <?php echo esc_html(date('H:i', $selected->start)); ?>
+	Für Ihren Termin am <?php echo esc_html(wp_date('d.m.y', $selected->start)); ?>
+	um <?php echo esc_html(wp_date('H:i', $selected->start)); ?>
 	bei <?php echo esc_html($selected->teacher->get_gender_as_anrede() . ' ' . $selected->teacher->name); ?>
 	benötigen wir noch folgende Daten von Ihnen:
 </p>
@@ -73,7 +73,7 @@ $gender_options = array(
 
 	<p>
 		Ich stimme zu, dass meine Angaben und Daten zur Beantwortung meiner Anfrage elektronisch gespeichert werden.
-		Die Einwilligung kann jederzeit per E-Mail an technik@tagore-gymnasium.de widerrufen werden.
+		<?php echo esc_html__( 'Die Einwilligung kann jederzeit über die Kontaktangaben in der Datenschutzerklärung dieser Website widerrufen werden.', 'flz-elternsprechtag' ); ?>
 		Von einer Übersendung sensibler Daten (zum Beispiel Gesundheitsdaten) bitten wir abzusehen.
 	</p>
 </div>

@@ -2,7 +2,7 @@
 <div class="wrap">
     <p>
         Der nächste Elternsprechtag findet am <?php
-	        echo esc_html( flz_ui_format_date( $nextEST, $nextEST ) );
+	        echo esc_html( (string) $nextEST );
         ?> statt.
     </p>
     <div class="flzest-frontend-form">

@@ -3,6 +3,59 @@
 WordPress-Plugin für Lehrkräfte, Terminserien, öffentliche Buchung,
 Bestätigungslinks und geschützte CSV-Portabilität des Elternsprechtags.
 
+## Neutrale Demoversion
+
+Diese Variante enthält keine schulgebundenen Texte in Pluginbeschreibung,
+Buchungsformular oder Buchungsmails. Technische Plugin-IDs, Abhängigkeiten,
+Paket-Herkunft und Lizenzangaben bleiben erhalten.
+
+In einer separaten, leeren WordPress-Demo-Installation unter
+**Elternsprechtag → Einstellungen → Demo-Daten anlegen**
+den vorhandenen Seed ausführen. Keine Datenbankkopie oder CSV-Datei einer
+echten Schule übernehmen: Die Aktivierung kann vorhandene Legacy-Daten
+migrieren; der Seed anonymisiert oder entfernt keine Bestandsdaten.
+
+Der Seed erzeugt ausschließlich synthetische Datensätze:
+
+- drei ausdrücklich mit `Demo-` bezeichnete Lehrkräfte;
+- zwei Demo-Elternteile mit je einem synthetischen Kind;
+- 18 Slots von je 20 Minuten zwischen 16 und 18 Uhr, davon zwei bestätigt gebucht;
+- alle sechs Plugin-Einstellungen: Datum in 30 Tagen, Terminrahmen,
+  Slotlänge, eingeschalteter Testmodus und `demo.elternsprechtag@example.test`
+  als Absender. Sämtliche Personenadressen verwenden ebenfalls `example.test`.
+
+Wiederholtes Anlegen verändert weder vorhandene Demo-Daten noch Einstellungen.
+Unter **Demo-Daten entfernen** werden nach Löschbestätigung ausschließlich
+die nachweislich von diesem Seed erzeugten, unveränderten Datensätze entfernt.
+Nachträgliche Buchungen, Personenänderungen oder zusätzliche Termine mit
+Demo-Personen blockieren die gesamte Entfernung ohne Teillöschung.
+Vorherige Einstellungswerte werden wiederhergestellt; manuell geänderte Werte
+bleiben erhalten. Erneutes Entfernen ist folgenlos, danach ist ein neuer
+Seed-Lauf möglich. Der Herkunftsnachweis liegt als nicht automatisch geladene
+WordPress-Option `flzest_demo_manifest` vor. Er enthält Datensatz-IDs,
+Prüfsummen und die zuvor überschriebenen Einstellungswerte.
+
+Ältere Demo-Daten ohne diesen Herkunftsnachweis werden weder automatisch
+übernommen noch gelöscht. Bereits vorhandene reservierte Demo-Adressen
+blockieren das Anlegen vollständig; dafür eine leere Demo-Installation nutzen.
+
+Er sendet selbst keine E-Mails. Bei manuellen Buchungen ruft der Testmodus
+weiterhin `wp_mail()` mit synthetischen Empfängern auf; für die Demo einen
+lokalen Mailfänger verwenden.
+
+Website-Titel, Theme, Seiten, Datenschutzerklärung und WordPress-Benutzer
+gehören zur Demo-Installation und werden vom Plugin-Seed nicht verändert.
+Der Mail-Absendername stammt weiterhin aus dem Website-Titel. Auch dort
+ausschließlich neutrale Bezeichnungen und synthetische Daten verwenden.
+
+Quellcodeprüfung: `php tests/neutral-demo-smoke.php` prüft die synthetischen
+Seed-Werte und neutralisierten Quelldateien. Die Tests
+`tests/demo-seed-integration.php`, `tests/demo-lifecycle-integration.php` und
+`tests/demo-admin-integration.php` prüfen mit `wp eval-file` eine ausdrücklich
+mit `FLZ_EST_DEMO_TEST=true` markierte, entbehrliche WordPress-Installation.
+Sie benötigen jeweils einen frischen Plugin-Datenbestand und verwenden
+ausschließlich synthetische Testdaten. Browsernachweise bleiben separat.
+
 Erforderliche Plugins: `flz_wpdb_objects` und `flz_ui_components`. Der aktuelle
 Härtungs- und Migrationsstand steht in `ROADMAP.md`.
 

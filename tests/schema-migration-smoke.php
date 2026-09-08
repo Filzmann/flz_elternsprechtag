@@ -22,9 +22,14 @@ if (!is_file($migration_file)) {
 }
 $migration = file_get_contents($migration_file);
 
+preg_match('/^Version:\s*(\S+)/m', $bootstrap, $header_version);
+preg_match("/const FLZ_EST_VERSION = '([^']+)'/", $bootstrap, $constant_version);
+if (empty($header_version[1]) || ($constant_version[1] ?? null) !== $header_version[1]) {
+	throw new RuntimeException('Pluginheader und Versionskonstante stimmen nicht überein.');
+}
+
 foreach (
 	array(
-		"const FLZ_EST_VERSION = '1.1.0'" => $bootstrap,
 		"const FLZ_EST_DB_VERSION = '2.0.0'" => $bootstrap,
 		'FlzEstSchemaMigrator::maybe_upgrade()' => $activation,
 		"get_option('flzest_db_version'" => $migration,

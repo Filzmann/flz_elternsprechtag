@@ -16,7 +16,7 @@
             <?php foreach ( $settings as $setting ) : ?>
 				<?php
 				$flzest_setting_is_date = in_array( $setting->name, array( 'NextParentsDay' ), true );
-				$flzest_setting_value   = $flzest_setting_is_date ? flz_ui_format_date( $setting->value, $setting->value ) : $setting->value;
+				$flzest_setting_value   = (string) $setting->value;
 				$flzest_description     = $flzest_setting_is_date ? 'Datumsformat: TT.MM.JJ' : '';
 				?>
                 <tr>
@@ -56,9 +56,14 @@
     <div class="flz-ui-panel">
         <h2>Demo-Daten</h2>
         <p>Legt ein kleines, klar als Demo erkennbares Beispiel an: drei Demo-Lehrkräfte, Zeitfenster für einen zukünftigen Elternsprechtag und zwei Beispielbuchungen.</p>
-        <p class="description">Vorhandene Demo-Einträge werden wiederverwendet. Echte Daten werden nicht gelöscht.</p>
+        <p class="description">Alle erzeugten Personen- und Kinddaten sind synthetisch; E-Mail-Adressen verwenden example.test. Vorhandene Demo-Einträge werden wiederverwendet. Terminrahmen, Testmodus und Absender werden auf Demo-Werte gesetzt. Bestehende Daten bleiben erhalten. Für einen reinen Demobestand eine leere Demo-Installation verwenden.</p>
 		<?php echo $flzest_ui->form_start( array( 'method' => 'post', 'nonce' => 'flzest_admin_action' ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Renderer escaped das Formular. ?>
-			<?php echo $flzest_ui->button_new( array( 'label' => 'Demo-Daten anlegen oder auffrischen', 'type' => 'submit', 'attrs' => array( 'name' => 'flzest_install_demo', 'value' => '1' ) ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Renderer escaped die Komponente. ?>
+			<?php echo $flzest_ui->button_new( array( 'label' => __('Demo-Daten anlegen', 'flz-elternsprechtag'), 'hide_label' => false, 'type' => 'submit', 'attrs' => array( 'name' => 'flzest_install_demo', 'value' => '1' ) ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Renderer escaped die Komponente. ?>
 		<?php echo $flzest_ui->form_end(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Renderer escaped das Formularende. ?>
+		<p><?php echo esc_html__('Wiederholtes Anlegen lässt vorhandene Demo-Daten unverändert. Entfernen löscht nur nachweislich durch diesen Seed angelegte, unveränderte Datensätze. Nachträgliche Buchungen oder Bearbeitungen verhindern die Entfernung. Frühere Einstellungen werden wiederhergestellt, manuelle Änderungen bleiben erhalten. Ältere Demo-Daten ohne Herkunftsnachweis werden nicht automatisch übernommen oder gelöscht.', 'flz-elternsprechtag'); ?></p>
+		<?php echo $flzest_ui->form_start(array('method' => 'post', 'nonce' => 'flzest_admin_action')); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Renderer escapes the form. ?>
+		<?php echo $flzest_ui->field(array('type' => 'checkbox', 'name' => 'flzest_confirm_remove_demo', 'checkbox_value' => '1', 'checked' => false, 'label' => __('Ich bestätige das Entfernen der unveränderten Demo-Daten.', 'flz-elternsprechtag'), 'required' => true)); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Renderer escapes the field. ?>
+		<?php echo $flzest_ui->button_delete(array('label' => __('Demo-Daten entfernen', 'flz-elternsprechtag'), 'hide_label' => false, 'type' => 'submit', 'attrs' => array('name' => 'flzest_remove_demo', 'value' => '1'))); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Renderer escapes the button. ?>
+		<?php echo $flzest_ui->form_end(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Renderer escapes the form. ?>
     </div>
 </div>

@@ -147,7 +147,7 @@ function sendMails( FlzEstAppointment $selected ): void {
 	$headers[] = 'Content-Type: text/plain; charset=UTF-8';
 	// Construct your email message
 	$teachers_message = "Hallo ".$selected->teacher->get_gender_as_anrede()." ".$selected->teacher->firstName." ".$selected->teacher->name."\n";
-	$teachers_message.= "Es gibt eine neue Buchung für den Elternsprechtag am ". flz_ui_format_date( $selected->start )."\n";
+	$teachers_message.= "Es gibt eine neue Buchung für den Elternsprechtag am ". wp_date( 'd.m.y', $selected->start )."\n";
 	$teachers_message.= "Beginn: ".wp_date('H:i', $selected->start)."\n";
 	$teachers_message.= "Ende: ".wp_date('H:i', $selected->end)."\n";
 	$teachers_message.= "Name: ".$selected->parent->get_gender_as_anrede()." ".$selected->parent->firstName." ".$selected->parent->name."\n";
@@ -168,7 +168,7 @@ function sendMails( FlzEstAppointment $selected ): void {
 
 
 	$parents_message = "Hallo ".$selected->parent->get_gender_as_anrede()." ".$selected->parent->firstName." ".$selected->parent->name."\n";
-	$parents_message.= "Sie haben zum Elternsprechtag des Tagore-Gymnasiums am ". flz_ui_format_date( $selected->start )."\n";
+	$parents_message.= "Sie haben zum Elternsprechtag am ". wp_date( 'd.m.y', $selected->start )."\n";
 	$parents_message.= "einen Termin bei ".$selected->teacher->get_gender_as_anrede()." ".$selected->teacher->firstName." ".$selected->teacher->name."\n";
 	$parents_message.= "Für ".$selected->parent->studentName." gebucht"."\n";
 	$parents_message.= "Beginn: ".wp_date('H:i', $selected->start)."\n";

@@ -1,13 +1,25 @@
 <?php
 
+require_once __DIR__ . '/../includes/demo-lifecycle.php';
+
 // Alle POST-Pfade laufen durch flzest_assert_admin_request(); der Sniff erkennt die zentrale Nonce-Prüfung nicht.
 // phpcs:disable WordPress.Security.NonceVerification.Missing
+// Domain exception messages are escaped in flzest_settings_page().
+// phpcs:disable WordPress.Security.EscapeOutput.ExceptionNotEscaped
 
 function flzest_settings_page(): void
 {
 	try {
 		flzest_settings_page_content();
 	} catch ( Throwable $error ) {
+		$cause = $error;
+		do {
+			if ($cause instanceof FlzEstDemoConflict) {
+				echo '<div class="notice notice-error"><p>' . esc_html($cause->getMessage()) . '</p></div>';
+				return;
+			}
+			$cause = $cause->getPrevious();
+		} while ($cause instanceof Throwable);
 		flzest_render_admin_error( $error, 'Anzeigen der Elternsprechtags-Einstellungen' );
 	}
 }
@@ -16,6 +28,20 @@ function flzest_settings_page_content(): void
 {
 	flzest_assert_admin_request();
 	$settings_notice = '';
+	if ((isset($_POST['flzest_install_demo']) || isset($_POST['flzest_remove_demo'])) &&
+		(isset($_POST['settings']) || isset($_POST['flzest_privacy_settings']) || (isset($_POST['flzest_install_demo']) && isset($_POST['flzest_remove_demo'])))) {
+		throw new FlzEstDemoConflict(__('Bitte führen Sie jeweils nur eine Demo-Aktion aus.', 'flz-elternsprechtag'));
+	}
+	if (isset($_POST['flzest_remove_demo'])) {
+		if (!isset($_POST['flzest_confirm_remove_demo']) || sanitize_text_field(wp_unslash($_POST['flzest_confirm_remove_demo'])) !== '1') {
+			throw new FlzEstDemoConflict(__('Bitte bestätigen Sie die Entfernung der Demo-Daten.', 'flz-elternsprechtag'));
+		}
+		$removed = flzest_remove_demo_content();
+		$settings_notice = sprintf(
+			__('Demo-Daten entfernt: %1$d Lehrkräfte, %2$d Elternteile, %3$d Termine.', 'flz-elternsprechtag'),
+			$removed['teachers'], $removed['parents'], $removed['appointments']
+		);
+	}
 	if ( isset( $_POST['settings'] ) )
 	{
 			$posted_settings = map_deep( wp_unslash( $_POST['settings'] ), 'sanitize_text_field' );
@@ -104,45 +130,42 @@ function flzest_validate_setting_value(string $name, string $value): string
 /**
  * Legt kleine, klar erkennbare Demo-Daten für lokale Tests an.
  *
- * Die Aktion ist idempotent: vorhandene Demo-Lehrkräfte und Demo-Eltern werden
- * anhand ihrer example.test-Adressen wiederverwendet statt dupliziert.
+ * Interner Erzeuger; Transaktion, Wiederholbarkeit und Herkunftsnachweis
+ * liegen ausschließlich in flzest_demo_lifecycle().
  *
  * @return array{teachers:int,appointments:int}
  */
-function flzest_install_demo_content(): array
+function flzest_create_demo_records(): array
 {
 	$result = array(
 		'teachers'     => 0,
 		'appointments' => 0,
 	);
 
-	flz_wpdb_objects\FlzWpdbTransaction::run(
-		static function () use ( &$result ): void {
-			flzest_save_setting_value( 'NextParentsDay', wp_date( 'd.m.y', current_time( 'timestamp' ) + 30 * DAY_IN_SECONDS ) );
-			flzest_save_setting_value( 'SlotLength', '20' );
-			flzest_save_setting_value( 'ParentsDayBegin', '16:00' );
-			flzest_save_setting_value( 'ParentsDayEnd', '18:00' );
-			flzest_save_setting_value( 'TestMode', '1' );
+	// Called only inside flzest_demo_lifecycle() and its transaction.
+	flzest_save_setting_value( 'NextParentsDay', wp_date( 'd.m.y', time() + 30 * DAY_IN_SECONDS ) );
+	flzest_save_setting_value( 'SlotLength', '20' );
+	flzest_save_setting_value( 'ParentsDayBegin', '16:00' );
+	flzest_save_setting_value( 'ParentsDayEnd', '18:00' );
+	flzest_save_setting_value( 'TestMode', '1' );
+	flzest_save_setting_value( 'MailFrom', 'demo.elternsprechtag@example.test' );
 
-			$demo_teachers = array(
-				array( 'gender' => 'f', 'name' => 'Demo-Beispiel', 'firstName' => 'Anna', 'email' => 'demo.elternsprechtag.anna@example.test' ),
-				array( 'gender' => 'm', 'name' => 'Demo-Muster', 'firstName' => 'Bernd', 'email' => 'demo.elternsprechtag.bernd@example.test' ),
-				array( 'gender' => 'f', 'name' => 'Demo-Test', 'firstName' => 'Clara', 'email' => 'demo.elternsprechtag.clara@example.test' ),
-			);
-
-			foreach ( $demo_teachers as $index => $teacher_data ) {
-				$teacher = flzest_ensure_demo_teacher( $teacher_data );
-				if ( $teacher_data['created'] ?? false ) {
-					$result['teachers']++;
-				}
-				flzest_ensure_teacher_slots( $teacher );
-				if ( $index < 2 && flzest_book_first_free_demo_slot( $teacher, $index ) ) {
-					$result['appointments']++;
-				}
-			}
-		},
-		'Anlegen von Elternsprechtag-Demo-Daten'
+	$demo_teachers = array(
+		array( 'gender' => 'f', 'name' => 'Demo-Beispiel', 'firstName' => 'Anna', 'email' => 'demo.elternsprechtag.anna@example.test' ),
+		array( 'gender' => 'm', 'name' => 'Demo-Muster', 'firstName' => 'Bernd', 'email' => 'demo.elternsprechtag.bernd@example.test' ),
+		array( 'gender' => 'f', 'name' => 'Demo-Test', 'firstName' => 'Clara', 'email' => 'demo.elternsprechtag.clara@example.test' ),
 	);
+
+	foreach ( $demo_teachers as $index => $teacher_data ) {
+		$teacher = flzest_ensure_demo_teacher( $teacher_data );
+		if ( $teacher_data['created'] ?? false ) {
+			$result['teachers']++;
+		}
+		flzest_ensure_teacher_slots( $teacher );
+		if ( $index < 2 && flzest_book_first_free_demo_slot( $teacher, $index ) ) {
+			$result['appointments']++;
+		}
+	}
 
 	return $result;
 }
@@ -165,8 +188,7 @@ function flzest_ensure_demo_teacher( array &$teacher_data ): FlzEstTeacher
 {
 	$teacher = FlzEstTeacher::get_by_email( $teacher_data['email'] );
 	if ( $teacher instanceof FlzEstTeacher ) {
-		$teacher_data['created'] = false;
-		return $teacher;
+		throw new FlzEstDemoConflict(__('Eine Demo-Lehrkraftadresse ist bereits ohne Herkunftsnachweis vorhanden. Es wurden keine Demo-Daten angelegt. Verwenden Sie eine leere Demo-Installation.', 'flz-elternsprechtag'));
 	}
 
 	$teacher_data['created'] = true;
@@ -179,8 +201,7 @@ function flzest_ensure_demo_teacher( array &$teacher_data ): FlzEstTeacher
 function flzest_ensure_teacher_slots( FlzEstTeacher $teacher ): void
 {
 	foreach ( getAppointmentsSlots() as $slot ) {
-		$start_label = date( 'H:i', (int) $slot['start'] );
-		if ( flzEstAppointment::get_by_teacher_and_start( $teacher, $start_label ) instanceof flzEstAppointment ) {
+		if ( flzEstAppointment::get_by_fields( array( 'teacher_id' => (int) $teacher->id, 'start' => (int) $slot['start'] ) ) instanceof flzEstAppointment ) {
 			continue;
 		}
 
@@ -202,7 +223,7 @@ function flzest_book_first_free_demo_slot( FlzEstTeacher $teacher, int $index ):
 		return false;
 	}
 
-	$appointment = flzEstAppointment::get_by_teacher_and_start( $teacher, date( 'H:i', (int) $slots[0]['start'] ) );
+	$appointment = flzEstAppointment::get_by_fields( array( 'teacher_id' => (int) $teacher->id, 'start' => (int) $slots[0]['start'] ) );
 	if ( ! $appointment instanceof flzEstAppointment || $appointment->parent instanceof FlzEstParent ) {
 		return false;
 	}
@@ -226,7 +247,7 @@ function flzest_ensure_demo_parent( int $index ): FlzEstParent
 	$data = $parents[ $index % count( $parents ) ];
 	$parent = FlzEstParent::get_by_email( $data['email'] );
 	if ( $parent instanceof FlzEstParent ) {
-		return $parent;
+		throw new FlzEstDemoConflict(__('Eine Demo-Elternadresse ist bereits ohne Herkunftsnachweis vorhanden. Es wurden keine Demo-Daten angelegt. Verwenden Sie eine leere Demo-Installation.', 'flz-elternsprechtag'));
 	}
 
 	$parent = new FlzEstParent( $data );
