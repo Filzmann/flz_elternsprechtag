@@ -64,6 +64,7 @@ $gender_options = array(
 	echo $ui->field(array(
 		'type'    => 'checkbox',
 		'name'    => 'parent[gdprChecked]',
+		'checkbox_value' => 'on',
 		'id'      => 'parent_gdprChecked',
 		'label'   => 'Ich habe die Datenschutzerklärung (einschließlich der angegebenen Löschfristen) zur Kenntnis genommen.',
 		'checked' => $parent && $parent->gdprChecked === 'on',

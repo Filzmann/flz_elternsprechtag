@@ -28,6 +28,8 @@ flzest_demo_check(count(FlzEstAppointment::get_all_by()) === 18, 'Repeated seed 
 flzest_demo_check(FlzEstSetting::get_value_by_name('MailFrom') === 'demo.elternsprechtag@example.test', 'Sender is not synthetic.');
 flzest_demo_check(FlzEstSetting::get_value_by_name('TestMode') === '1', 'Test mode not enabled.');
 $selected = $appointments[0];
+$consent_html = flzest_render_step3($selected);
+flzest_demo_check((bool) preg_match('/name="parent\[gdprChecked\]"[^>]*value="on"/', $consent_html), 'Consent checkbox must submit the value accepted by parent validation.');
 $step3 = preg_replace('/\s+/', ' ', wp_strip_all_tags(flzest_render_step3($selected)));
 flzest_demo_check(str_contains($step3, 'um ' . wp_date('H:i', $selected->start)), 'Booking form must show the WordPress timezone.');
 $form = preg_replace('/\s+/', ' ', wp_strip_all_tags(do_shortcode('[flzest]')));
