@@ -39,6 +39,19 @@ verwenden. Pro Fall genau ein Ergebnis markieren und Abweichungen begründen.
 - Noch nicht belegt: saubere Frischinstallation, Upgrade aus der relevanten
   Vorversion mit synthetischem Bestand sowie EST-03 bis EST-09.
 
+### Technischer ZIP-Nachweis vom 17. Oktober 2026
+
+- Exaktes Artefakt: `flz_elternsprechtag-1.2.0-rc.2.zip`, Commit
+  `27a9b510055dd2e068342176854f926e4f299cde`, SHA-256
+  `80844272bb32d7733612c3f3b009ed4131c68d79c0ed19296b51d87db409dcfc`.
+- Zwei unabhängige Bauten waren bytegleich; Manifest und `SHA256SUMS` wurden
+  erfolgreich geprüft.
+- In einer isolierten lokalen DDEV-Umgebung waren frische ZIP-Installation,
+  Upgrade aus `1.1.0` mit synthetischen Daten, Datenvergleich,
+  Deaktivierung/Reaktivierung sowie HTTP 200 erfolgreich.
+- Der technische Nachweis ersetzt nicht den noch erforderlichen grünen
+  Remote-CI-Lauf für diesen exakten Commit.
+
 | ID | Prüfschritte | Erwartetes Ergebnis | Ergebnis | Warum / Beleg / Abweichung |
 |---|---|---|---|---|
 | EST-01 | Frischinstallation und Upgrade aus der relevanten Vorversion mit synthetischem Bestand durchführen. | Schema 2.0.0 ist vollständig; Daten und Beziehungen bleiben erhalten; Wiederholung ist idempotent. | [x] erfolgreich [ ] nicht erfolgreich [ ] nicht geprüft | Frischinstallation und Update auf Staging laut Auftraggeber problemlos. |
