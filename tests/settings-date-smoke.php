@@ -37,8 +37,9 @@ flzest_settings_date_assert( $rejected );
 $template = file_get_contents( __DIR__ . '/../templates/settings.php' );
 flzest_settings_date_assert(
 	false !== strpos( $template, 'flzest_setting_input_args' )
-		&& false !== strpos( $template, '$flzest_ui->input( (string) $flzest_setting_args[\'type\']' ),
+		&& false !== strpos( $template, '$flzest_ui->field( $flzest_setting_args )' ),
 );
+flzest_settings_date_assert( false !== strpos( $template, 'flz-ui-card-grid flzest-settings-grid' ) );
 
 $field_contracts = array(
 	'NextParentsDay'  => array( 'type' => 'date', 'value' => '2026-11-17' ),
@@ -56,5 +57,12 @@ foreach ( $field_contracts as $name => $expected ) {
 }
 flzest_settings_date_assert( 'text' === flzest_setting_input_args( 'UnknownSetting', '' )['type'] );
 flzest_settings_date_assert( false !== strpos( $template, '->hidden( \'settings[\' . $setting->id . \']\', \'0\'' ) );
+
+foreach ( array( 'teachers.php', 'appointments.php' ) as $csv_template_name ) {
+	$csv_template = file_get_contents( __DIR__ . '/../templates/' . $csv_template_name );
+	$csv_grid_position  = strpos( $csv_template, 'flz-ui-card-grid flzest-csv-grid' );
+	$table_position     = 'appointments.php' === $csv_template_name ? strpos( $csv_template, 'id="appointmentTable"' ) : strpos( $csv_template, '<table class="widefat striped flz-ui-admin-table">' );
+	flzest_settings_date_assert( false !== $csv_grid_position && false !== $table_position && $table_position < $csv_grid_position );
+}
 
 echo "OK: settings date input and storage contract\n"; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- CLI-Testausgabe.

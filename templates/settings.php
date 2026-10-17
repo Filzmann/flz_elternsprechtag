@@ -8,32 +8,20 @@
         <h2>Grundeinstellungen</h2>
         <p class="description">Diese Werte steuern den nächsten Elternsprechtag und die Länge der buchbaren Zeitfenster.</p>
 		<?php echo $flzest_ui->form_start( array( 'method' => 'post', 'nonce' => 'flzest_admin_action' ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Renderer escaped das Formular. ?>
-        <table class="widefat striped flz-ui-admin-table">
-            <tr>
-                <th>Name</th>
-                <th>Wert</th>
-            </tr>
+		<div class="flz-ui-card-grid flzest-settings-grid">
             <?php foreach ( $settings as $setting ) : ?>
 				<?php
 				$flzest_setting_args          = flzest_setting_input_args( (string) $setting->name, (string) $setting->value );
 				$flzest_setting_args['name']  = 'settings[' . $setting->id . ']';
 				$flzest_setting_args['label'] = (string) $setting->name;
+				$flzest_setting_args['required'] = 'checkbox' !== $flzest_setting_args['type'];
 				?>
-                <tr>
-	                    <td><?php echo esc_html( $setting->name ); ?></td>
-                    <td>
-						<?php if ( 'checkbox' === $flzest_setting_args['type'] ) : ?>
-							<?php echo $flzest_ui->hidden( 'settings[' . $setting->id . ']', '0' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Renderer escaped das Hidden Field. ?>
-							<?php echo $flzest_ui->field( $flzest_setting_args ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Renderer escaped die Komponente. ?>
-						<?php else : ?>
-							<?php $flzest_setting_args['required'] = true; ?>
-							<?php echo $flzest_ui->input( (string) $flzest_setting_args['type'], $flzest_setting_args ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Renderer escaped die Komponente. ?>
-						<?php endif; ?>
-                    </td>
-
-                </tr>
+				<?php if ( 'checkbox' === $flzest_setting_args['type'] ) : ?>
+					<?php echo $flzest_ui->hidden( 'settings[' . $setting->id . ']', '0' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Renderer escaped das Hidden Field. ?>
+				<?php endif; ?>
+				<?php echo $flzest_ui->field( $flzest_setting_args ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Renderer escaped die Komponente. ?>
             <?php endforeach; ?>
-        </table>
+		</div>
 			<?php echo $flzest_ui->button_save( array( 'label' => 'Einstellungen speichern' ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Renderer escaped die Komponente. ?>
 		<?php echo $flzest_ui->form_end(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Renderer escaped das Formularende. ?>
     </div>

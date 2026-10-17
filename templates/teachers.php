@@ -106,42 +106,6 @@ $flzest_teacher_row = static function ( FlzEstTeacher $teacher ) use ( $flzest_u
 		<?php echo $flzest_ui->button_new( array( 'label' => 'Neue Lehrkraft anlegen', 'attrs' => array( 'data-flz-ui-show-new-row' => 'flzest-teacher-new' ) ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Renderer escaped die Komponente. ?>
 	</p>
 
-	<?php
-	// phpcs:disable WordPress.Security.EscapeOutput.OutputNotEscaped -- Renderer escaped die CSV-Komponente inklusive URL, Labels und Formularfeldern.
-	echo $flzest_ui->csv_panel(
-		array(
-			'title'       => 'Lehrkräfte CSV',
-			'description' => 'Versionierter Export und obligatorischer Dry-Run. Vorhandene Lehrkräfte werden über ihre E-Mail-Adresse aktualisiert; nicht aufgeführte Lehrkräfte bleiben erhalten.',
-			'format'      => 'format_version; record_type; gender; last_name; first_name; email',
-			'export'      => array(
-				'href'  => $teacher_csv_export_url,
-				'label' => 'Lehrkräfte-CSV herunterladen',
-			),
-			'upload'      => array(
-				'nonce'        => 'flzest_admin_action',
-				'file_name'    => 'teacher-csv',
-				'file_id'      => 'teacher-csv',
-				'button_label' => 'Lehrkräfte-CSV prüfen (Dry-Run)',
-				'submit_name'  => 'submit_csv_dry_run',
-			),
-		)
-	);
-	echo $flzest_ui->csv_panel(
-		array(
-			'title'       => 'Geprüfte Lehrkräfte-CSV importieren',
-			'description' => 'Nach einem erfolgreichen Dry-Run dieselbe unveränderte Datei erneut auswählen. Der Prüfnachweis gilt 15 Minuten.',
-			'upload'      => array(
-				'nonce'        => 'flzest_admin_action',
-				'file_name'    => 'teacher-csv',
-				'file_id'      => 'teacher-csv-import',
-				'button_label' => 'Geprüfte Lehrkräfte-CSV importieren',
-				'submit_name'  => 'submit_csv',
-			),
-		)
-	);
-	// phpcs:enable WordPress.Security.EscapeOutput.OutputNotEscaped
-	?>
-
 	<table class="widefat striped flz-ui-admin-table">
 		<thead>
 			<tr>
@@ -175,4 +139,12 @@ $flzest_teacher_row = static function ( FlzEstTeacher $teacher ) use ( $flzest_u
 			<?php echo $flzest_ui->button( array( 'href' => admin_url( 'admin.php?page=flzest_teachers' ), 'label' => 'Filter zurücksetzen', 'variant' => 'secondary' ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Renderer escaped die Komponente. ?>
 		</p>
 	<?php endif; ?>
+	<?php
+	// phpcs:disable WordPress.Security.EscapeOutput.OutputNotEscaped -- Renderer escaped die CSV-Komponente inklusive URL, Labels und Formularfeldern.
+	echo '<div class="flz-ui-card-grid flzest-csv-grid">';
+	echo $flzest_ui->csv_panel( array( 'title' => 'Lehrkräfte CSV', 'description' => 'Versionierter Export und obligatorischer Dry-Run. Vorhandene Lehrkräfte werden über ihre E-Mail-Adresse aktualisiert; nicht aufgeführte Lehrkräfte bleiben erhalten.', 'format' => 'format_version; record_type; gender; last_name; first_name; email', 'export' => array( 'href' => $teacher_csv_export_url, 'label' => 'Lehrkräfte-CSV herunterladen' ), 'upload' => array( 'nonce' => 'flzest_admin_action', 'file_name' => 'teacher-csv', 'file_id' => 'teacher-csv', 'button_label' => 'Lehrkräfte-CSV prüfen (Dry-Run)', 'submit_name' => 'submit_csv_dry_run' ) ) );
+	echo $flzest_ui->csv_panel( array( 'title' => 'Geprüfte Lehrkräfte-CSV importieren', 'description' => 'Nach einem erfolgreichen Dry-Run dieselbe unveränderte Datei erneut auswählen. Der Prüfnachweis gilt 15 Minuten.', 'upload' => array( 'nonce' => 'flzest_admin_action', 'file_name' => 'teacher-csv', 'file_id' => 'teacher-csv-import', 'button_label' => 'Geprüfte Lehrkräfte-CSV importieren', 'submit_name' => 'submit_csv' ) ) );
+	echo '</div>';
+	// phpcs:enable WordPress.Security.EscapeOutput.OutputNotEscaped
+	?>
 </div>

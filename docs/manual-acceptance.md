@@ -49,7 +49,7 @@ verwenden. Pro Fall genau ein Ergebnis markieren und Abweichungen begründen.
 | EST-06 | WordPress-Privacy-Export und -Löschung mit neutraler Adresse ausführen. | Auskunft ist vollständig; Eltern-/Kinddaten werden gelöscht, Termine freigegeben, Lehrkraft strukturerhaltend anonymisiert. | [ ] erfolgreich [ ] nicht erfolgreich [ ] nicht geprüft | |
 | EST-07 | Aufbewahrung ausgeschaltet sowie bewusst aktiviert/manuell bestätigt prüfen. | Standard erzeugt keinen Cron; Löschung erfolgt nur nach dokumentierter Aktivierung beziehungsweise Bestätigung. | [ ] erfolgreich [ ] nicht erfolgreich [ ] nicht geprüft | |
 | EST-08 | Test- und normale Mail in Mailpit prüfen. | Empfänger/Absender sind korrekt; Links funktionieren; keine internen Details oder Tokens erscheinen in Logs. | [ ] erfolgreich [ ] nicht erfolgreich [ ] nicht geprüft | |
-| EST-09 | Mehrschrittbuchung mobil und nur per Tastatur bedienen; Fehlerfälle auslösen. | Fokus, Labels, Fehler und Fortschritt sind verständlich; kein horizontales Seitenscrollen oder Tastaturfalle. | [ ] erfolgreich [ ] nicht erfolgreich [ ] nicht geprüft | |
+| EST-09 | Mehrschrittbuchung mobil und nur per Tastatur bedienen; Fehlerfälle auslösen. | Fokus, Labels, Fehler und Fortschritt sind verständlich; kein horizontales Seitenscrollen oder Tastaturfalle. | [x] erfolgreich [ ] nicht erfolgreich [ ] nicht geprüft | Fachlich abgenommen durch Auftraggeber am 17.10.2026. |
 | EST-10 | Rückbau auf dokumentierten Snapshot beziehungsweise Vorartefakt durchführen. | Ausgangscode und dokumentierter Datenstand sind nachvollziehbar wiederherstellbar. | [ ] erfolgreich [ ] nicht erfolgreich [ ] nicht geprüft | |
 
 ## Abschlussentscheidung
