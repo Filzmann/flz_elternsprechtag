@@ -102,7 +102,7 @@ function flzest_validate_setting_value(string $name, string $value): string
 		return $value;
 	}
 	if ('NextParentsDay' === $name) {
-		foreach (array('!d.m.y', '!d.m.Y') as $format) {
+		foreach (array('!Y-m-d', '!d.m.y', '!d.m.Y') as $format) {
 			$date = DateTimeImmutable::createFromFormat($format, $value);
 			if ($date && $date->format(substr($format, 1)) === $value) {
 				return $date->format('d.m.y');
@@ -125,6 +125,70 @@ function flzest_validate_setting_value(string $name, string $value): string
 	}
 
 	return sanitize_text_field($value);
+}
+
+/**
+ * Converts the established stored date format into the ISO value required by
+ * an HTML date input. Invalid legacy values are left empty so they cannot be
+ * submitted as a different date without an explicit correction.
+ */
+function flzest_date_input_value(string $value): string
+{
+	foreach (array('!d.m.y', '!d.m.Y') as $format) {
+		$date = DateTimeImmutable::createFromFormat($format, $value);
+		if ($date && $date->format(substr($format, 1)) === $value) {
+			return $date->format('Y-m-d');
+		}
+	}
+
+	return '';
+}
+
+/**
+ * Returns the UI Components field contract for a persisted plugin setting.
+ *
+ * @return array<string,mixed>
+ */
+function flzest_setting_input_args(string $name, string $value): array
+{
+	switch ($name) {
+		case 'NextParentsDay':
+			return array(
+				'type'        => 'date',
+				'value'       => flzest_date_input_value($value),
+				'description' => 'Datum auswählen.',
+			);
+		case 'SlotLength':
+			return array(
+				'type'  => 'number',
+				'value' => $value,
+				'min'   => 5,
+				'max'   => 120,
+			);
+		case 'ParentsDayBegin':
+		case 'ParentsDayEnd':
+			return array(
+				'type'  => 'time',
+				'value' => $value,
+			);
+		case 'TestMode':
+			return array(
+				'type'           => 'checkbox',
+				'checkbox_value' => '1',
+				'checked'        => '1' === $value,
+			);
+		case 'MailFrom':
+			return array(
+				'type'         => 'email',
+				'value'        => $value,
+				'autocomplete' => 'email',
+			);
+		default:
+			return array(
+				'type'  => 'text',
+				'value' => $value,
+			);
+	}
 }
 
 /**

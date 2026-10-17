@@ -15,14 +15,20 @@
             </tr>
             <?php foreach ( $settings as $setting ) : ?>
 				<?php
-				$flzest_setting_is_date = in_array( $setting->name, array( 'NextParentsDay' ), true );
-				$flzest_setting_value   = (string) $setting->value;
-				$flzest_description     = $flzest_setting_is_date ? 'Datumsformat: TT.MM.JJ' : '';
+				$flzest_setting_args          = flzest_setting_input_args( (string) $setting->name, (string) $setting->value );
+				$flzest_setting_args['name']  = 'settings[' . $setting->id . ']';
+				$flzest_setting_args['label'] = (string) $setting->name;
 				?>
                 <tr>
 	                    <td><?php echo esc_html( $setting->name ); ?></td>
                     <td>
-						<?php echo $flzest_ui->input( 'text', array( 'name' => 'settings[' . $setting->id . ']', 'label' => $setting->name, 'value' => $flzest_setting_value, 'required' => true, 'description' => $flzest_description ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Renderer escaped die Komponente. ?>
+						<?php if ( 'checkbox' === $flzest_setting_args['type'] ) : ?>
+							<?php echo $flzest_ui->hidden( 'settings[' . $setting->id . ']', '0' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Renderer escaped das Hidden Field. ?>
+							<?php echo $flzest_ui->field( $flzest_setting_args ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Renderer escaped die Komponente. ?>
+						<?php else : ?>
+							<?php $flzest_setting_args['required'] = true; ?>
+							<?php echo $flzest_ui->input( (string) $flzest_setting_args['type'], $flzest_setting_args ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Renderer escaped die Komponente. ?>
+						<?php endif; ?>
                     </td>
 
                 </tr>
@@ -45,12 +51,10 @@
 		<?php if (null !== $privacy_deleted) : ?>
 			<?php echo $flzest_ui->notice(sprintf('%d abgelaufene Elterndatensätze wurden gelöscht und ihre Termine freigegeben.', $privacy_deleted), 'success'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Renderer escaped die Notice. ?>
 		<?php endif; ?>
-		<form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
-			<input type="hidden" name="action" value="flzest_delete_expired_bookings">
-			<?php wp_nonce_field('flzest_delete_expired_bookings'); ?>
-			<label><input type="checkbox" name="confirm_delete_expired_bookings" value="1" required> Ich bestätige die Löschung aller Eltern-/Kinddaten zu Terminen außerhalb der Aufbewahrungsfrist.</label>
+		<?php echo $flzest_ui->form_start( array( 'method' => 'post', 'action' => admin_url( 'admin-post.php' ), 'nonce' => 'flzest_delete_expired_bookings', 'hidden' => array( 'action' => 'flzest_delete_expired_bookings' ) ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Renderer escaped das Formular. ?>
+			<?php echo $flzest_ui->field( array( 'type' => 'checkbox', 'name' => 'confirm_delete_expired_bookings', 'checkbox_value' => '1', 'label' => 'Ich bestätige die Löschung aller Eltern-/Kinddaten zu Terminen außerhalb der Aufbewahrungsfrist.', 'required' => true ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Renderer escaped die Komponente. ?>
 			<?php echo $flzest_ui->button_delete(array('label' => 'Abgelaufene Buchungen jetzt löschen', 'type' => 'submit')); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Renderer escaped die Komponente. ?>
-		</form>
+		<?php echo $flzest_ui->form_end(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Renderer escaped das Formularende. ?>
 	</div>
 
     <div class="flz-ui-panel">
