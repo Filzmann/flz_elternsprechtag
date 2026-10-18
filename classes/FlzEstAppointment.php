@@ -7,6 +7,7 @@ use flz_wpdb_objects\FlzWpdbObjectsException;
 
 require_once( "FlzEstTeacher.php" );
 require_once( "FlzEstEstParent.php" );
+require_once dirname( __DIR__ ) . '/includes/time-slots.php';
 
 class FlzEstAppointmentUnavailableException extends RuntimeException
 {
@@ -75,9 +76,14 @@ class flzEstAppointment extends FlzWpdbObject
 	public static function get_by_teacher_and_start( object|null $teacher,  string $start): object|null {
 		if(!$teacher) return null;
 
-		$date=FlzEstSetting::get_value_by_name("NextParentsDay");
-		$timestamp  = strtotime( $date." ".$start);
-		if ( $timestamp === false ) {
+		$date = FlzEstSetting::get_value_by_name( 'NextParentsDay' );
+		try {
+			$timestamp = flzest_local_appointment_timestamp(
+				(string) $date,
+				$start,
+				function_exists( 'wp_timezone' ) ? wp_timezone() : null
+			);
+		} catch ( UnexpectedValueException $error ) {
 			throw FlzWpdbObjectsException::invalid_model_state(
 				static::class,
 				'Datum und Startzeit konnten nicht in einen Zeitstempel umgewandelt werden.'
