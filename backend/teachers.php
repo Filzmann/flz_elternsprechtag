@@ -80,8 +80,6 @@ function flzest_export_teachers_csv(): void
 			flzest_teacher_csv_header(),
 			array_map(
 				static fn( FlzEstTeacher $teacher ): array => array(
-					FLZEST_CSV_VERSION,
-					'teacher',
 					$teacher->gender,
 					$teacher->name,
 					$teacher->firstName,
@@ -128,11 +126,11 @@ function processTeacherForm(): void
 function processTeacherCsvFile(): array|null
 {
 	try {
-		$is_dry_run = isset( $_POST['submit_csv_dry_run'] );
-		$is_import = isset( $_POST['submit_csv'] );
-		if ( ! $is_dry_run && ! $is_import ) {
+		$is_submission = isset( $_POST['submit_csv'] );
+		if ( ! $is_submission ) {
 			return null;
 		}
+		$is_dry_run = isset( $_POST['csv_dry_run'] );
 
 		$teacher_rows = flzest_parse_teacher_csv(
 			flz_wpdb_objects_read_uploaded_csv( 'teacher-csv', 'Importieren der Lehrkräfte-CSV-Datei', false )

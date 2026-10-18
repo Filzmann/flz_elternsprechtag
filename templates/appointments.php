@@ -103,9 +103,10 @@ $flzest_appointment_row = static function ( FlzEstAppointment $appointment ) use
 					),
 				),
 			),
-			'edit'  => array( 'label' => 'Termin bearbeiten' ),
+			'edit'  => array( 'label' => 'Termin bearbeiten', 'hide_label' => true ),
 			'save'  => array(
 				'label' => 'Buchung speichern',
+				'hide_label' => true,
 				'attrs' => array( 'name' => 'submit' ),
 			),
 			'extra_actions' => $clear_action,
@@ -139,7 +140,7 @@ $flzest_appointment_row = static function ( FlzEstAppointment $appointment ) use
 			<?php echo $flzest_ui->form_start( array( 'method' => 'post', 'nonce' => 'flzest_admin_action' ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Renderer escaped das Formular. ?>
 				<?php echo $flzest_ui->button_reset( array( 'label' => 'Neuen Elternsprechtag vorbereiten', 'confirm' => 'Achtung! Sie sind dabei, alle Buchungen zurückzusetzen. Ist das erwünscht?', 'attrs' => array( 'name' => 'newEST', 'id' => 'newEST' ) ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Renderer escaped die Komponente. ?>
 			<?php echo $flzest_ui->form_end(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Renderer escaped das Formularende. ?>
-			<table id="appointmentTable" class="widefat striped flz-ui-admin-table">
+			<table id="appointmentTable" class="widefat striped flz-ui-admin-table flz-ui-admin-table--compact">
 				<thead>
 					<tr>
 						<th><?php echo $flzest_appointment_sort_link( 'Beginn', 'start' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Renderer escaped den Sortierlink. ?></th>
@@ -194,10 +195,7 @@ $flzest_appointment_row = static function ( FlzEstAppointment $appointment ) use
 	</div>
 	<?php
 	// phpcs:disable WordPress.Security.EscapeOutput.OutputNotEscaped -- Renderer escaped die CSV-Komponente inklusive URL, Labels und Formularfeldern.
-	echo '<div class="flz-ui-card-grid flzest-csv-grid">';
-	echo $flzest_ui->csv_panel( array( 'title' => 'Buchungen und Termine CSV', 'description' => 'Versionierter vollständiger Snapshot aller freien und belegten Termine. Der Import ersetzt Buchungsdaten erst nach erfolgreichem Dry-Run.', 'format' => 'format_version; record_type; teacher_email; start_timestamp; end_timestamp; parent_*; student_*; gdpr_checked; confirmed', 'export' => array( 'href' => $appointment_csv_export_url, 'label' => 'Buchungen-CSV herunterladen' ), 'upload' => array( 'nonce' => 'flzest_admin_action', 'file_name' => 'appointments-csv', 'file_id' => 'appointments-csv', 'button_label' => 'Termin-CSV prüfen (Dry-Run)', 'submit_name' => 'submit_csv_dry_run' ) ) );
-	echo $flzest_ui->csv_panel( array( 'title' => 'Geprüfte Termin-CSV importieren', 'description' => 'Nach einem erfolgreichen Dry-Run dieselbe unveränderte Datei erneut auswählen. Der Prüfnachweis gilt 15 Minuten.', 'upload' => array( 'nonce' => 'flzest_admin_action', 'file_name' => 'appointments-csv', 'file_id' => 'appointments-csv-import', 'button_label' => 'Geprüfte Termin-CSV importieren', 'submit_name' => 'submit_csv' ) ) );
-	echo '</div>';
+	echo $flzest_ui->csv_panel( array( 'title' => 'Buchungen und Termine CSV', 'description' => 'Excel-freundlicher vollständiger Snapshot aller freien und belegten Termine ohne technische Metadatenspalten. Die Datei wird standardmäßig nur geprüft; zum Import die Prüfoption erst nach einem erfolgreichen Dry-Run deaktivieren. Der Prüfnachweis gilt für dieselbe unveränderte Datei 15 Minuten.', 'format' => 'teacher_email; start_timestamp; end_timestamp; parent_*; student_*; gdpr_checked; confirmed', 'format_description' => '<strong>teacher_email</strong>: Lehrkraft. <strong>start_timestamp / end_timestamp</strong>: Beginn und Ende im Format JJJJ-MM-TT HH:MM:SS. <strong>parent_* / student_*</strong>: Angaben zur buchenden Person bzw. zum Kind. <strong>gdpr_checked / confirmed</strong>: 1 = ja, 0 = nein.', 'export' => array( 'href' => $appointment_csv_export_url, 'label' => 'Buchungen-CSV herunterladen' ), 'upload' => array( 'nonce' => 'flzest_admin_action', 'file_name' => 'appointments-csv', 'file_id' => 'appointments-csv', 'fields' => array( array( 'type' => 'checkbox', 'name' => 'csv_dry_run', 'label' => 'Datei nur prüfen – es werden noch keine Termine oder Buchungen geändert.', 'checked' => true ) ), 'button_label' => 'Termin-CSV prüfen oder importieren', 'button' => array( 'hide_label' => false, 'confirm' => 'CSV jetzt verarbeiten? Mit aktivierter Prüfoption werden keine Daten geändert; ohne sie ist nur eine zuvor erfolgreich geprüfte, unveränderte Datei importierbar.' ), 'submit_name' => 'submit_csv' ) ) );
 	// phpcs:enable WordPress.Security.EscapeOutput.OutputNotEscaped
 	?>
 </div>

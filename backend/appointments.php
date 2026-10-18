@@ -72,11 +72,11 @@ function countFilledFieldsInArray($array): int {
  */
 function processAppointmentsCsvFile(): array|null {
 	try {
-		$is_dry_run = isset( $_POST['submit_csv_dry_run'] );
-		$is_import = isset( $_POST['submit_csv'] );
-		if ( ! $is_dry_run && ! $is_import ) {
+		$is_submission = isset( $_POST['submit_csv'] );
+		if ( ! $is_submission ) {
 			return null;
 		}
+		$is_dry_run = isset( $_POST['csv_dry_run'] );
 
 		$appointment_rows = flzest_parse_appointment_csv(
 			flz_wpdb_objects_read_uploaded_csv( 'appointments-csv', 'Importieren der Elternsprechtagstermine aus CSV', false )
@@ -380,8 +380,6 @@ function flzest_export_appointments_csv(): void
 			flzest_appointment_csv_header(),
 			array_map(
 				static fn( FlzEstAppointment $appointment ): array => array(
-					FLZEST_CSV_VERSION,
-					'appointment',
 					$appointment->teacher?->email,
 					$appointment->start,
 					$appointment->end,
