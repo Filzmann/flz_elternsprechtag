@@ -124,11 +124,21 @@ jobs:
           composer install --working-dir=tagore-plugins/tests/coverage --no-interaction --no-progress --prefer-dist
       - name: PHP-Line-Coverage messen
         run: |
+          set -o pipefail
           tagore-plugins/scripts/measure-component-php-coverage \
             flz_elternsprechtag \
             flz_elternsprechtag \
             "$GITHUB_WORKSPACE/tagore-plugins/tests/coverage/vendor/bin/phpcov" \
-            "$RUNNER_TEMP/php-coverage"
+            "$RUNNER_TEMP/php-coverage" 2>&1 | tee "$RUNNER_TEMP/php-coverage.log"
+      - name: Coverage-Diagnose speichern
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: php-coverage-diagnostics
+          path: |
+            ${{ runner.temp }}/php-coverage.log
+            ${{ runner.temp }}/php-coverage
+          if-no-files-found: warn
 
   release:
     name: Release-Artefakt
