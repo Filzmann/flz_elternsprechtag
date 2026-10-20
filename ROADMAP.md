@@ -2,17 +2,16 @@
 
 ## Prüfstatus
 
-**Funktionsstand 1.1.0 ohne offene P0-Befunde; Release-Gate in
-Übernahmephase 2 blockiert.** Deaktivierung,
+**Funktionsstand 1.2.0-rc.14 ohne offene P0-Befunde; Release-Gate in
+Übernahmephase 5 bereit.** Deaktivierung,
 geschützte CSV-Roundtrips, Testmail, Parallelbuchung, additive Legacy-Migration,
 Datenschutz und Terminvalidierung sind im Code abgesichert. Komponenten-Smokes,
 PHPCS, echte lokale Bestandsmigration und Aktivieren–Deaktivieren–Aktivieren
 wurden geprüft. PR-/Main-CI, branchgleiche Shared-Plugins und die PHP-Ratsche
-von 10,69 Prozent sind remote enforced. Der reproduzierbare ZIP-Builder ist
-konfiguriert. Vor einem Tag fehlen die schrittweise Annäherung an 85 Prozent,
-die Browser-/Mail-/Zwei-Prozess-Abnahme sowie Installation, Upgrade und Rückbau
-aus dem exakten Artefakt. Das Protokoll liegt unter
-`docs/manual-acceptance.md`.
+von 11,35 Prozent sind remote enforced. Der reproduzierbare ZIP-Builder ist
+enforced; die isolierte Frischinstallation, das Upgrade aus RC.2 sowie
+Deaktivierung, Reaktivierung und Shortcode-Rendern aus dem exakten Artefakt
+wurden nachgewiesen. Das Protokoll liegt unter `docs/manual-acceptance.md`.
 
 ## P0
 
