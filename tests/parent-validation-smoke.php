@@ -56,4 +56,3 @@ if (!in_array('NO_GDPR', $invalid_consent->errors(), true)) {
 }
 
 echo "OK: flz_elternsprechtag parent validation smoke test\n";
-

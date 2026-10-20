@@ -37,7 +37,7 @@ class FlzEstParent extends FlzPerson
 		if (!in_array($this->gender, array(null, '', 'd', 'f', 'm'), true)) {
 			$errors[] = 'NO_GENDER';
 		}
-		if (!in_array($this->gdprChecked, array('on', 'yes'), true)) {
+		if (!in_array($this->gdprChecked, array('1', 'on', 'yes'), true)) {
 			$errors[] = 'NO_GDPR';
 		}
 		if (!$this->valid_text($this->studentClass, 32) || !preg_match('/^[\p{L}\p{N} ._-]+$/u', (string) $this->studentClass)) {

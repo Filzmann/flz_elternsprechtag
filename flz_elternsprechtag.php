@@ -2,7 +2,7 @@
 /*
 Plugin Name: FLZ Elternsprechtag
 Description: Schulunabhängige Terminverwaltung für Elternsprechtage mit synthetischen Demodaten
-Version: 1.2.0-rc.2
+Version: 1.2.0-rc.14
 Author: Filzmann
 License: GPLv2 or later
 Requires Plugins: flz_wpdb_objects, flz_ui_components
@@ -14,10 +14,10 @@ namespace flz_est;
 
 defined( 'ABSPATH' ) || exit;
 
-const FLZ_EST_VERSION = '1.2.0-rc.2';
-const FLZ_EST_DB_VERSION = '2.0.0';
-const FLZ_EST_MIN_WPDB_OBJECTS_VERSION = '2.0.0';
-const FLZ_EST_MIN_UI_COMPONENTS_VERSION = '0.2.0';
+const FLZ_EST_VERSION = '1.2.0-rc.14';
+const FLZ_EST_DB_VERSION = '2.3.0';
+const FLZ_EST_MIN_WPDB_OBJECTS_VERSION = '2.1.0';
+const FLZ_EST_MIN_UI_COMPONENTS_VERSION = '0.2.1-rc.3';
 
 function flz_est_dependencies_available(): bool {
 	return defined( 'FLZ_WPDB_OBJECTS_VERSION' )
@@ -47,6 +47,7 @@ function flz_est_bootstrap(): bool {
 
 	require_once plugin_dir_path( __FILE__ ) . 'error-handling.php';
 	require_once plugin_dir_path( __FILE__ ) . 'includes/csv-contract.php';
+	require_once plugin_dir_path( __FILE__ ) . 'includes/mail-templates.php';
 	require_once plugin_dir_path( __FILE__ ) . 'activate-deactivate.php';
 	require_once plugin_dir_path( __FILE__ ) . 'includes/class-flz-est-schema-migrator.php';
 	require_once plugin_dir_path( __FILE__ ) . 'includes/privacy.php';

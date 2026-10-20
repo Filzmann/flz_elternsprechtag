@@ -5,8 +5,11 @@
 
 class FlzEstTeacher extends FlzPerson
 {
+	public ?string $registration_note;
+
 	public function __construct(array $data = []) {
 		parent::__construct($data);
+		$this->registration_note = isset( $data['registration_note'] ) ? (string) $data['registration_note'] : null;
 	}
 
 	protected static function get_table_schema(): string {
@@ -16,6 +19,7 @@ class FlzEstTeacher extends FlzPerson
             firstName VARCHAR(255) NOT NULL,
             gender CHAR NOT NULL,
             email VARCHAR(255) NOT NULL,
+            registration_note longtext NULL,
             PRIMARY KEY (id))";
 	}
 
@@ -29,6 +33,7 @@ class FlzEstTeacher extends FlzPerson
 			'firstName' => sanitize_text_field($this->firstName),
 			'gender' => sanitize_text_field($this->gender),
 			'email' => sanitize_email($this->email),
+			'registration_note' => wp_kses_post( (string) $this->registration_note ),
 		];
 	}
 	public function createTeachersAppointments($slots=array()): void {

@@ -40,4 +40,3 @@ foreach (
 }
 
 echo "OK: flz_elternsprechtag privacy retention smoke test\n";
-

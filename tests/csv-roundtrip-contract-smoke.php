@@ -133,7 +133,10 @@ foreach (
 	array(
 		'flzest_teacher_csv_header()',
 		"flz_wpdb_objects_read_uploaded_csv( 'teacher-csv', 'Importieren der Lehrkräfte-CSV-Datei', false )",
-		"isset( \$_POST['csv_dry_run'] )",
+		"isset( \$_POST['submit_csv'] )",
+		"isset( \$_POST['confirm_teacher_csv_import'] )",
+		"FlzCsvImportStage::store( 'flzest:teachers'",
+		"FlzCsvImportStage::consume( 'flzest:teachers'",
 		'flzest_teacher_csv_proof_hash',
 		'FlzWpdbTransaction::run',
 	) as $required_contract
@@ -154,7 +157,10 @@ foreach (
 	array(
 		'flzest_appointment_csv_header()',
 		"flz_wpdb_objects_read_uploaded_csv( 'appointments-csv', 'Importieren der Elternsprechtagstermine aus CSV', false )",
-		"isset( \$_POST['csv_dry_run'] )",
+		"isset( \$_POST['submit_csv'] )",
+		"isset( \$_POST['confirm_csv_import'] )",
+		"FlzCsvImportStage::store( 'flzest:appointments'",
+		"FlzCsvImportStage::consume( 'flzest:appointments'",
 		'flzest_appointment_csv_proof_hash',
 		'FlzWpdbTransaction::run',
 		'$appointment->confirmationToken = null',

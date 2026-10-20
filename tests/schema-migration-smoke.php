@@ -30,7 +30,7 @@ if (empty($header_version[1]) || ($constant_version[1] ?? null) !== $header_vers
 
 foreach (
 	array(
-		"const FLZ_EST_DB_VERSION = '2.0.0'" => $bootstrap,
+		"const FLZ_EST_DB_VERSION = '2.3.0'" => $bootstrap,
 		'FlzEstSchemaMigrator::maybe_upgrade()' => $activation,
 		"get_option('flzest_db_version'" => $migration,
 		"update_option('flzest_db_version'" => $migration,
@@ -53,4 +53,3 @@ if (str_contains($appointment, 'FOREIGN KEY')) {
 }
 
 echo "OK: flz_elternsprechtag schema migration smoke test\n";
-
