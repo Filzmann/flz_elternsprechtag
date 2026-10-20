@@ -21,6 +21,7 @@ function flzest_teachers_page_content(): void
 	flzest_assert_admin_request();
 	processTeacherForm();
 	$teacher_csv_notice = processTeacherCsvFile();
+	$teacher_csv_stage_ready = FlzCsvImportStage::exists( 'flzest:teachers', get_current_user_id() );
 	handleTeacherDeletion();
 
 	$teachers = FlzEstTeacher::get_all_by( order_by: 'name' );
@@ -107,6 +108,7 @@ function processTeacherForm(): void
 		return;
 	}
 
+	$registration_note = isset( $_POST['registration_note'] ) ? wp_kses_post( wp_unslash( $_POST['registration_note'] ) ) : null;
 	$teacher_data = map_deep( wp_unslash( $_POST ), 'sanitize_text_field' );
 	$teacher_id   = isset( $teacher_data['id'] ) && '' !== $teacher_data['id'] ? absint( $teacher_data['id'] ) : null;
 	$teacher      = $teacher_id ? FlzEstTeacher::get_by_id( $teacher_id ) : new FlzEstTeacher( [] );
@@ -114,6 +116,9 @@ function processTeacherForm(): void
 		throw new UnexpectedValueException( 'Die zu speichernde Lehrkraft wurde nicht gefunden.' );
 	}
 	$teacher->assignPostData( $teacher_data, [ 'name', 'firstName', 'gender', 'email' ] );
+	if ( null !== $registration_note ) {
+		$teacher->registration_note = $registration_note;
+	}
 	flz_wpdb_objects\FlzWpdbTransaction::run(
 		static fn() => $teacher->save(),
 		'Speichern einer Lehrkraft mit ihren Elternsprechtagsterminen'
@@ -127,19 +132,15 @@ function processTeacherCsvFile(): array|null
 {
 	try {
 		$is_submission = isset( $_POST['submit_csv'] );
-		if ( ! $is_submission ) {
+		$is_confirmation = isset( $_POST['confirm_teacher_csv_import'] );
+		if ( ! $is_submission && ! $is_confirmation ) {
 			return null;
 		}
-		$is_dry_run = isset( $_POST['csv_dry_run'] );
-
-		$teacher_rows = flzest_parse_teacher_csv(
-			flz_wpdb_objects_read_uploaded_csv( 'teacher-csv', 'Importieren der Lehrkräfte-CSV-Datei', false )
-		);
-		$plan = flzest_plan_teacher_csv_import( $teacher_rows );
-		$proof_hash = flzest_teacher_csv_proof_hash( $teacher_rows );
-
-		if ( $is_dry_run ) {
-			set_transient( flzest_teacher_csv_proof_key(), $proof_hash, 15 * MINUTE_IN_SECONDS );
+		if ( $is_submission ) {
+			$teacher_rows = flzest_parse_teacher_csv( flz_wpdb_objects_read_uploaded_csv( 'teacher-csv', 'Importieren der Lehrkräfte-CSV-Datei', false ) );
+			$plan = flzest_plan_teacher_csv_import( $teacher_rows );
+			$proof_hash = flzest_teacher_csv_proof_hash( $teacher_rows );
+			FlzCsvImportStage::store( 'flzest:teachers', get_current_user_id(), $teacher_rows, $proof_hash, 15 * MINUTE_IN_SECONDS );
 
 			return array(
 				'type' => 'success',
@@ -152,10 +153,9 @@ function processTeacherCsvFile(): array|null
 			);
 		}
 
-		$stored_proof = get_transient( flzest_teacher_csv_proof_key() );
-		if ( ! is_string( $stored_proof ) || ! hash_equals( $stored_proof, $proof_hash ) ) {
-			throw new UnexpectedValueException( 'Diese Datei muss vor dem Import erneut erfolgreich als Dry-Run geprüft werden.' );
-		}
+		$stage = FlzCsvImportStage::consume( 'flzest:teachers', get_current_user_id() );
+		if ( ! is_array( $stage ) ) { throw new UnexpectedValueException( 'Der geprüfte CSV-Stand ist abgelaufen. Bitte laden Sie die Datei erneut hoch und führen Sie den Dry-Run aus.' ); }
+		$teacher_rows = $stage['rows']; $proof_hash = $stage['proof']; $plan = flzest_plan_teacher_csv_import( $teacher_rows );
 
 		flz_wpdb_objects\FlzWpdbTransaction::run(
 			static function () use ( $plan, $proof_hash, $teacher_rows ): void {
@@ -166,7 +166,7 @@ function processTeacherCsvFile(): array|null
 			},
 			'Aktualisieren und Ergänzen der Lehrkräfte durch einen CSV-Import'
 		);
-		delete_transient( flzest_teacher_csv_proof_key() );
+		FlzCsvImportStage::discard( 'flzest:teachers', get_current_user_id() );
 
 		return array(
 			'type' => 'success',
@@ -181,9 +181,7 @@ function processTeacherCsvFile(): array|null
 
 		return array(
 			'type' => 'error',
-			'message' => $error instanceof UnexpectedValueException
-				? $error->getMessage()
-				: 'Die Lehrkräfte-CSV konnte nicht sicher verarbeitet werden.',
+			'message' => flzest_csv_import_error_message( $error, 'Die Lehrkräfte-CSV' ),
 		);
 	}
 }

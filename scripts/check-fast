@@ -1,21 +1,22 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-cd "$ROOT_DIR"
+repo="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$repo"
 
 echo "=== PHP syntax ==="
-find . -path './.git' -prune -o -path './vendor' -prune -o -type f -name '*.php' -print0 \
-	| xargs -0 -r -n1 php -l >/dev/null
+find . -path './.git' -prune -o -path './vendor' -prune -o -type f -name '*.php' -print0 | xargs -0 -r -n1 php -l >/dev/null
 echo "PHP syntax: OK"
 
-if compgen -G 'tests/*-smoke.php' >/dev/null; then
-	echo
-	echo "=== Component smoke tests ==="
-	for test_file in tests/*-smoke.php; do
-		php "$test_file"
-	done
-fi
+echo
+echo "=== Component smoke tests ==="
+for test_file in tests/*-smoke.php; do
+	php "$test_file"
+done
+
+echo
+echo "=== Appointments admin contract ==="
+php scripts/test-admin-appointments-confirmation-column.php
 
 if [[ -x vendor/bin/phpcs ]]; then
 	echo
@@ -29,6 +30,4 @@ fi
 echo
 echo "=== Diff hygiene ==="
 git diff --check
-
-echo
-echo "OK: fast component checks completed."
+echo 'OK: fast component checks completed.'

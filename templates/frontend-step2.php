@@ -9,6 +9,12 @@ $ui = flz_ui();
 		Mögliche Termine bei
 		<?php echo esc_html($selected->teacher->get_gender_as_anrede() . ' ' . $selected->teacher->name); ?>
 	</h3>
+	<?php $teacher_registration_note = trim( (string) ( $selected->teacher->registration_note ?? '' ) ); ?>
+	<?php if ( '' !== $teacher_registration_note ) : ?>
+		<div class="flzest-teacher-registration-note">
+			<?php echo wp_kses_post( wpautop( $teacher_registration_note ) ); ?>
+		</div>
+	<?php endif; ?>
 
 	<?php if (empty($appointments)) : ?>
 		<p>Leider sind alle Termine schon ausgebucht!</p>

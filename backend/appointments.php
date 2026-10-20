@@ -73,33 +73,38 @@ function countFilledFieldsInArray($array): int {
 function processAppointmentsCsvFile(): array|null {
 	try {
 		$is_submission = isset( $_POST['submit_csv'] );
-		if ( ! $is_submission ) {
+		$is_confirmation = isset( $_POST['confirm_csv_import'] );
+		if ( ! $is_submission && ! $is_confirmation ) {
 			return null;
 		}
-		$is_dry_run = isset( $_POST['csv_dry_run'] );
 
-		$appointment_rows = flzest_parse_appointment_csv(
-			flz_wpdb_objects_read_uploaded_csv( 'appointments-csv', 'Importieren der Elternsprechtagstermine aus CSV', false )
-		);
-		$plan = flzest_plan_appointment_csv_import( $appointment_rows );
-		$proof_hash = flzest_appointment_csv_proof_hash( $appointment_rows );
-
-		if ( $is_dry_run ) {
-			set_transient( flzest_appointment_csv_proof_key(), $proof_hash, 15 * MINUTE_IN_SECONDS );
+		if ( $is_submission ) {
+			$appointment_rows = flzest_parse_appointment_csv(
+				flz_wpdb_objects_read_uploaded_csv( 'appointments-csv', 'Importieren der Elternsprechtagstermine aus CSV', false )
+			);
+			$plan = flzest_plan_appointment_csv_import( $appointment_rows );
+			$proof_hash = flzest_appointment_csv_proof_hash( $appointment_rows );
+			FlzCsvImportStage::store( 'flzest:appointments', get_current_user_id(), $appointment_rows, $proof_hash, 15 * MINUTE_IN_SECONDS );
 
 			return array(
 				'type' => 'success',
 				'message' => sprintf(
-					'Dry-Run erfolgreich: vollständiger Snapshot mit %d belegten und %d freien Terminen.',
+					'Dry-Run erfolgreich: vollständiger Snapshot mit %d belegten und %d freien Terminen. Bestätigen Sie jetzt den Import; die geprüften Daten werden nach 15 Minuten automatisch verworfen.',
 					$plan['booked'],
 					$plan['free']
 				),
 			);
 		}
 
-		$stored_proof = get_transient( flzest_appointment_csv_proof_key() );
-		if ( ! is_string( $stored_proof ) || ! hash_equals( $stored_proof, $proof_hash ) ) {
-			throw new UnexpectedValueException( 'Diese Datei muss vor dem Import erneut erfolgreich als Dry-Run geprüft werden.' );
+		$stage = FlzCsvImportStage::consume( 'flzest:appointments', get_current_user_id() );
+		if ( ! is_array( $stage ) ) {
+			throw new UnexpectedValueException( 'Der geprüfte CSV-Stand ist abgelaufen. Bitte laden Sie die Datei erneut hoch und führen Sie den Dry-Run aus.' );
+		}
+		$appointment_rows = $stage['rows'];
+		$proof_hash = $stage['proof'];
+		$plan = flzest_plan_appointment_csv_import( $appointment_rows );
+		if ( ! hash_equals( $proof_hash, flzest_appointment_csv_proof_hash( $appointment_rows ) ) ) {
+			throw new UnexpectedValueException( 'Der geprüfte CSV-Stand passt nicht mehr zum aktuellen Terminbestand. Bitte führen Sie den Dry-Run erneut aus.' );
 		}
 
 		flz_wpdb_objects\FlzWpdbTransaction::run(
@@ -119,7 +124,7 @@ function processAppointmentsCsvFile(): array|null {
 			},
 			'Wiederherstellen aller Elternsprechtagstermine aus CSV'
 		);
-		delete_transient( flzest_appointment_csv_proof_key() );
+		FlzCsvImportStage::discard( 'flzest:appointments', get_current_user_id() );
 
 		return array(
 			'type' => 'success',
@@ -130,13 +135,14 @@ function processAppointmentsCsvFile(): array|null {
 			),
 		);
 	} catch ( Throwable $error ) {
+		if ( isset( $is_confirmation ) && $is_confirmation ) {
+			FlzCsvImportStage::discard( 'flzest:appointments', get_current_user_id() );
+		}
 		flzest_log_error( $error, 'Prüfen oder Importieren der Elternsprechtagstermine aus CSV' );
 
 		return array(
 			'type' => 'error',
-			'message' => $error instanceof UnexpectedValueException
-				? $error->getMessage()
-				: 'Die Termin-CSV konnte nicht sicher verarbeitet werden.',
+			'message' => flzest_csv_import_error_message( $error, 'Die Termin-CSV' ),
 		);
 	}
 }
@@ -286,6 +292,7 @@ function flzest_appointments_page_content(): void {
 
 	}
 	$appointment_csv_notice = processAppointmentsCsvFile();
+	$appointment_csv_stage_ready = FlzCsvImportStage::exists( 'flzest:appointments', get_current_user_id() );
 	processAppointmentForm();
 	// show appointment table
 	$appointments = flzEstAppointment::get_all_by();

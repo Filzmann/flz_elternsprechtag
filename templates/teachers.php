@@ -18,7 +18,7 @@ $flzest_teacher_sort_link = static function ( string $label, string $sort ) use 
 	);
 };
 
-$flzest_teacher_row = static function ( FlzEstTeacher $teacher ) use ( $flzest_ui, $flzest_gender_options ): string {
+$flzest_teacher_row = static function ( FlzEstTeacher $teacher, int $row_index ) use ( $flzest_ui, $flzest_gender_options ): string {
 	$is_new = empty( $teacher->id );
 	$row_id = $is_new ? 'flzest-teacher-new' : 'flzest-teacher-' . (int) $teacher->id;
 	$delete_action = '';
@@ -35,9 +35,30 @@ $flzest_teacher_row = static function ( FlzEstTeacher $teacher ) use ( $flzest_u
 		);
 	}
 
+	$details = array();
+	if ( ! $is_new ) {
+		$details = array(
+			'label' => 'Hinweis im Anmeldeprozess',
+			'editor' => array(
+				'id'    => 'flzest-teacher-' . (int) $teacher->id . '-registration-note',
+				'name'  => 'registration_note',
+				'label' => 'Hinweis nach Auswahl dieser Lehrkraft',
+				'value' => (string) ( $teacher->registration_note ?? '' ),
+				'settings' => array(
+					'textarea_rows' => 5,
+					'media_buttons' => false,
+					'teeny' => true,
+					'tinymce' => array( 'toolbar1' => 'bold,italic,bullist,numlist,link,unlink' ),
+					'quicktags' => true,
+				),
+			),
+		);
+	}
+
 	return $flzest_ui->editable_row(
 		array(
 			'id'         => $row_id,
+			'class'      => 0 === $row_index % 2 ? 'alternate' : '',
 			'new'        => $is_new,
 			'row_hidden' => $is_new,
 			'form'       => array(
@@ -88,6 +109,7 @@ $flzest_teacher_row = static function ( FlzEstTeacher $teacher ) use ( $flzest_u
 				),
 			),
 			'edit'       => array( 'label' => 'Lehrkraft bearbeiten' ),
+			'details'    => $details,
 			'save'       => array(
 				'label' => 'Lehrkraft speichern',
 				'attrs' => array( 'name' => 'submit' ),
@@ -101,6 +123,11 @@ $flzest_teacher_row = static function ( FlzEstTeacher $teacher ) use ( $flzest_u
 	<h1>Lehrpersonal bearbeiten</h1>
 	<?php if ( ! empty( $teacher_csv_notice ) ) : ?>
 		<?php echo $flzest_ui->notice( $teacher_csv_notice['message'], $teacher_csv_notice['type'] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Renderer escaped die Notice. ?>
+	<?php endif; ?>
+	<?php if ( $teacher_csv_stage_ready ) : ?>
+		<?php echo $flzest_ui->form_start( array( 'method' => 'post', 'nonce' => 'flzest_admin_action' ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
+			<?php echo $flzest_ui->button( array( 'label' => 'Geprüfte Lehrkräfte-CSV jetzt importieren', 'attrs' => array( 'name' => 'confirm_teacher_csv_import', 'value' => '1', 'type' => 'submit' ) ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
+		<?php echo $flzest_ui->form_end(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
 	<?php endif; ?>
 	<p>
 		<?php echo $flzest_ui->button_new( array( 'label' => 'Neue Lehrkraft anlegen', 'attrs' => array( 'data-flz-ui-show-new-row' => 'flzest-teacher-new' ) ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Renderer escaped die Komponente. ?>
@@ -128,9 +155,9 @@ $flzest_teacher_row = static function ( FlzEstTeacher $teacher ) use ( $flzest_u
 			</tr>
 		</thead>
 		<tbody>
-			<?php echo $flzest_teacher_row( new FlzEstTeacher( array() ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Renderer escaped die Tabellenzeile. ?>
-			<?php foreach ( $teachers as $teacher ) : ?>
-				<?php echo $flzest_teacher_row( $teacher ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Renderer escaped die Tabellenzeile. ?>
+			<?php echo $flzest_teacher_row( new FlzEstTeacher( array() ), -1 ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Renderer escaped die Tabellenzeile. ?>
+			<?php foreach ( $teachers as $row_index => $teacher ) : ?>
+				<?php echo $flzest_teacher_row( $teacher, $row_index ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Renderer escaped die Tabellenzeile. ?>
 			<?php endforeach; ?>
 		</tbody>
 	</table>

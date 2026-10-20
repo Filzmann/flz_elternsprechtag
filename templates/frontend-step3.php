@@ -9,7 +9,12 @@ $gender_options = array(
 	'f' => 'Frau',
 	'm' => 'Herr',
 );
+$booking_confirmation_notice = trim( FlzEstSetting::get_value_by_name( 'BookingConfirmationNotice' ) );
+if ( '' === $booking_confirmation_notice ) {
+	$booking_confirmation_notice = flzest_booking_confirmation_notice_default();
+}
 ?>
+<?php echo $ui->notice( wpautop( $booking_confirmation_notice ), 'info' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Renderer escaped die Notice. ?>
 <p>
 	Für Ihren Termin am <?php echo esc_html(wp_date('d.m.y', $selected->start)); ?>
 	um <?php echo esc_html(wp_date('H:i', $selected->start)); ?>
@@ -64,10 +69,10 @@ $gender_options = array(
 	echo $ui->field(array(
 		'type'    => 'checkbox',
 		'name'    => 'parent[gdprChecked]',
-		'checkbox_value' => 'on',
+		'checkbox_value' => 'yes',
 		'id'      => 'parent_gdprChecked',
 		'label'   => 'Ich habe die Datenschutzerklärung (einschließlich der angegebenen Löschfristen) zur Kenntnis genommen.',
-		'checked' => $parent && $parent->gdprChecked === 'on',
+		'checked' => $parent && in_array($parent->gdprChecked, array('1', 'on', 'yes'), true),
 	));
 	// phpcs:enable WordPress.Security.EscapeOutput.OutputNotEscaped
 	?>

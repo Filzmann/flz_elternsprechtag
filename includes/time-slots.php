@@ -56,6 +56,38 @@ function flzest_local_appointment_timestamp(
 }
 
 /**
+ * Checks whether a persisted parents-day date is after the current local day.
+ *
+ * The established TT.MM.JJ format is ambiguous to strtotime() (for example,
+ * 01.11.26 can be parsed as a time), so it is parsed strictly instead.
+ */
+function flzest_is_future_parents_day(
+	string $date_value,
+	?DateTimeImmutable $now = null,
+	?DateTimeZone $timezone = null
+): bool {
+	$timezone = $timezone ?? ( function_exists( 'wp_timezone' ) ? wp_timezone() : new DateTimeZone( date_default_timezone_get() ) );
+	$date     = null;
+	foreach ( array( 'd.m.y', 'd.m.Y' ) as $date_format ) {
+		$candidate = DateTimeImmutable::createFromFormat( '!' . $date_format, $date_value, $timezone );
+		if ( $candidate && $candidate->format( $date_format ) === $date_value ) {
+			$date = $candidate;
+			break;
+		}
+	}
+
+	if ( ! $date instanceof DateTimeImmutable ) {
+		return false;
+	}
+
+	$today = ( $now ?? new DateTimeImmutable( 'now', $timezone ) )
+		->setTimezone( $timezone )
+		->setTime( 0, 0 );
+
+	return $date > $today;
+}
+
+/**
  * Builds bounded appointment slots from validated date and time settings.
  *
  * @return array<int,array{start:int,end:int}>

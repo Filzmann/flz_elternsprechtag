@@ -1,6 +1,7 @@
 <?php
 
 require_once __DIR__ . '/../includes/demo-lifecycle.php';
+require_once __DIR__ . '/../includes/mail-templates.php';
 
 // Alle POST-Pfade laufen durch flzest_assert_admin_request(); der Sniff erkennt die zentrale Nonce-Prüfung nicht.
 // phpcs:disable WordPress.Security.NonceVerification.Missing
@@ -44,15 +45,19 @@ function flzest_settings_page_content(): void
 	}
 	if ( isset( $_POST['settings'] ) )
 	{
-			$posted_settings = map_deep( wp_unslash( $_POST['settings'] ), 'sanitize_text_field' );
+			// phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Jeder Wert wird nach Zuordnung zur persistierten Einstellung einzeln validiert.
+			$posted_settings = wp_unslash( $_POST['settings'] );
+			if ( ! is_array( $posted_settings ) ) {
+				throw new UnexpectedValueException( 'Die Einstellungen besitzen kein gültiges Array-Format.' );
+			}
 			flz_wpdb_objects\FlzWpdbTransaction::run(
 			static function () use ( $posted_settings ): void {
-					foreach ( (array) $posted_settings as $id => $value ) {
+					foreach ( $posted_settings as $id => $value ) {
 						$setting = FlzEstSetting::get_by_id( absint( $id ) );
 						if ( ! $setting instanceof FlzEstSetting ) {
 							throw new UnexpectedValueException( 'Eine zu speichernde Einstellung wurde nicht gefunden.' );
 						}
-						$setting->value = flzest_validate_setting_value($setting->name, (string) $value);
+						$setting->value = flzest_validate_setting_value($setting->name, is_scalar( $value ) ? (string) $value : '');
 						$setting->save();
 					}
 				},
@@ -123,6 +128,29 @@ function flzest_validate_setting_value(string $name, string $value): string
 		}
 		return $email;
 	}
+	if ( 'BookingConfirmationNotice' === $name ) {
+		$value = wp_kses_post( $value );
+		if ( '' === $value ) {
+			throw new UnexpectedValueException( 'Der Hinweis zur Bestätigungsmail darf nicht leer sein.' );
+		}
+
+		return $value;
+	}
+	if ( flzest_is_mail_template_setting( $name ) ) {
+		if ( str_ends_with( $name, 'Subject' ) ) {
+			$value = sanitize_text_field( $value );
+		} else {
+			$value = wp_kses_post( $value );
+		}
+		if ( '' === $value ) {
+			throw new UnexpectedValueException( 'Mailbetreff und Mailtext dürfen nicht leer sein.' );
+		}
+		if ( flzest_mail_template_has_unknown_placeholder( $value ) ) {
+			throw new UnexpectedValueException( 'Die Mailvorlage enthält einen unbekannten Platzhalter.' );
+		}
+
+		return $value;
+	}
 
 	return sanitize_text_field($value);
 }
@@ -183,12 +211,46 @@ function flzest_setting_input_args(string $name, string $value): array
 				'value'        => $value,
 				'autocomplete' => 'email',
 			);
+		case 'MailTeacherSubject':
+		case 'MailParentSubject':
+			return array(
+				'type'  => 'text',
+				'value' => $value,
+			);
+		case 'MailTeacherBody':
+		case 'MailParentBody':
+			return array(
+				'type'        => 'textarea',
+				'value'       => $value,
+				'rows'        => 10,
+				'input_class' => 'large-text code',
+			);
+		case 'BookingConfirmationNotice':
+			return array(
+				'type'        => 'textarea',
+				'value'       => $value,
+				'rows'        => 4,
+				'input_class' => 'large-text',
+			);
 		default:
 			return array(
 				'type'  => 'text',
 				'value' => $value,
 			);
 	}
+}
+
+function flzest_setting_label( string $name ): string
+{
+	$labels = array(
+		'MailTeacherSubject' => 'Betreff: Mail an Lehrkraft',
+		'MailTeacherBody'    => 'Text: Mail an Lehrkraft',
+		'MailParentSubject'  => 'Betreff: Mail an Elternteil',
+		'MailParentBody'     => 'Text: Mail an Elternteil',
+		'BookingConfirmationNotice' => 'Hinweis zur Bestätigungsmail auf der Buchungsseite',
+	);
+
+	return $labels[ $name ] ?? $name;
 }
 
 /**

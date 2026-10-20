@@ -76,7 +76,7 @@ Ein sauberer Commit wird reproduzierbar paketiert mit:
 
 ## Neu in 1.1.0
 
-- Die eigene DB-Version 2.0.0 migriert die vier Legacy-Tabellen additiv und
+- Die eigene DB-Version 2.1.0 migriert die vier Legacy-Tabellen additiv und
   idempotent in das aktuelle Modell. Legacy-Tabellen bleiben als Rückfallpfad
   erhalten; Konflikte brechen die Migration ohne stilles Überschreiben ab.
 - Deaktivierung erhält Tabellen, Daten, Rolle und Capability. Der lokale

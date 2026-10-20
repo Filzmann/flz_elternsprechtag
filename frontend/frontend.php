@@ -125,60 +125,54 @@ function sendMails( FlzEstAppointment $selected ): void {
 	if (!$selected->teacher instanceof FlzEstTeacher || !$selected->parent instanceof FlzEstParent) {
 		throw new UnexpectedValueException('Für den E-Mail-Versand fehlen Lehrkraft oder Elterndatensatz.');
 	}
-	// Prepare email data
-	$teacherEmail = sanitize_email((string) $selected->teacher->email);
-	$parentEmail = sanitize_email((string) $selected->parent->email);
-	if (!is_email($teacherEmail) || !is_email($parentEmail)) {
+	$teacher_email = sanitize_email( (string) $selected->teacher->email );
+	$parent_email = sanitize_email( (string) $selected->parent->email );
+	if ( ! is_email( $teacher_email ) || ! is_email( $parent_email ) ) {
 		throw new UnexpectedValueException('Eine Empfängeradresse der Elternsprechtags-E-Mails ist ungültig.');
 	}
 
-	if (intval(FlzEstSetting::get_value_by_name( "TestMode" )))
-	{
-		$teacherEmail = 'private-test@example.test';
-		$parentEmail = 'private-test@example.test';
-
+	if ( intval( FlzEstSetting::get_value_by_name( 'TestMode' ) ) ) {
+		$teacher_email = 'private-test@example.test';
+		$parent_email = 'private-test@example.test';
 	}
-	// Prepare email headers
-	$from_email = sanitize_email(FlzEstSetting::get_value_by_name('MailFrom'));
+
+	$from_email = sanitize_email( FlzEstSetting::get_value_by_name( 'MailFrom' ) );
 	if (!is_email($from_email)) {
 		throw new UnexpectedValueException('Die konfigurierte Absenderadresse ist ungültig.');
 	}
-	$headers[] = 'From: ' . wp_specialchars_decode(get_bloginfo('name'), ENT_QUOTES) . ' <' . $from_email . '>';
-	$headers[] = 'Content-Type: text/plain; charset=UTF-8';
-	// Construct your email message
-	$teachers_message = "Hallo ".$selected->teacher->get_gender_as_anrede()." ".$selected->teacher->firstName." ".$selected->teacher->name."\n";
-	$teachers_message.= "Es gibt eine neue Buchung für den Elternsprechtag am ". wp_date( 'd.m.y', $selected->start )."\n";
-	$teachers_message.= "Beginn: ".wp_date('H:i', $selected->start)."\n";
-	$teachers_message.= "Ende: ".wp_date('H:i', $selected->end)."\n";
-	$teachers_message.= "Name: ".$selected->parent->get_gender_as_anrede()." ".$selected->parent->firstName." ".$selected->parent->name."\n";
-	$teachers_message.= "Name Schüler:in: ".$selected->parent->studentName."\n";
-	$teachers_message.= "Klasse Schüler:in: ".$selected->parent->studentClass."\n";
-
-	//echo $teachers_message."<hr>";
-	// Send the email
-	$teacher_mail_sent = wp_mail($teacherEmail, 'Elternsprechtag', $teachers_message, $headers);
-
-
-	// Baue den Aktivierungslink
 	$permalink = get_permalink();
 	if (!is_string($permalink) || '' === $permalink) {
 		throw new RuntimeException('Die URL der Elternsprechtagsseite konnte nicht bestimmt werden.');
 	}
-	$link=add_query_arg(array('appointment_id' => (int) $selected->id, 'token' => (string) $selected->confirmationToken), $permalink);
+	$confirmation_url = esc_url_raw( add_query_arg( array( 'appointment_id' => (int) $selected->id, 'token' => (string) $selected->confirmationToken ), $permalink ) );
+	$site_name = sanitize_text_field( wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES ) );
+	$context = array(
+		'teacher_salutation' => esc_html( (string) $selected->teacher->get_gender_as_anrede() ),
+		'teacher_name'       => esc_html( trim( (string) $selected->teacher->firstName . ' ' . (string) $selected->teacher->name ) ),
+		'parent_salutation'  => esc_html( (string) $selected->parent->get_gender_as_anrede() ),
+		'parent_name'        => esc_html( trim( (string) $selected->parent->firstName . ' ' . (string) $selected->parent->name ) ),
+		'student_name'       => esc_html( (string) $selected->parent->studentName ),
+		'student_class'      => esc_html( (string) $selected->parent->studentClass ),
+		'appointment_date'   => esc_html( wp_date( 'd.m.y', $selected->start ) ),
+		'start_time'         => esc_html( wp_date( 'H:i', $selected->start ) ),
+		'end_time'           => esc_html( wp_date( 'H:i', $selected->end ) ),
+		'confirmation_url'   => esc_url( $confirmation_url ),
+		'site_name'          => esc_html( $site_name ),
+	);
+	$headers = array(
+		'From: ' . $site_name . ' <' . $from_email . '>',
+		'Content-Type: text/html; charset=UTF-8',
+	);
+	$teacher_subject = flzest_render_mail_template( FlzEstSetting::get_value_by_name( 'MailTeacherSubject' ), $context );
+	$teacher_message = wpautop( flzest_render_mail_template( FlzEstSetting::get_value_by_name( 'MailTeacherBody' ), $context ) );
+	$parent_subject = flzest_render_mail_template( FlzEstSetting::get_value_by_name( 'MailParentSubject' ), $context );
+	$parent_message = wpautop( flzest_render_mail_template( FlzEstSetting::get_value_by_name( 'MailParentBody' ), $context ) );
+	if ( '' === trim( $teacher_subject ) || '' === trim( $teacher_message ) || '' === trim( $parent_subject ) || '' === trim( $parent_message ) ) {
+		throw new UnexpectedValueException( 'Eine konfigurierte Mailvorlage ist leer.' );
+	}
 
-
-	$parents_message = "Hallo ".$selected->parent->get_gender_as_anrede()." ".$selected->parent->firstName." ".$selected->parent->name."\n";
-	$parents_message.= "Sie haben zum Elternsprechtag am ". wp_date( 'd.m.y', $selected->start )."\n";
-	$parents_message.= "einen Termin bei ".$selected->teacher->get_gender_as_anrede()." ".$selected->teacher->firstName." ".$selected->teacher->name."\n";
-	$parents_message.= "Für ".$selected->parent->studentName." gebucht"."\n";
-	$parents_message.= "Beginn: ".wp_date('H:i', $selected->start)."\n";
-	$parents_message.= "Ende: ".wp_date('H:i', $selected->end)."\n";
-	$parents_message.= "Achtung, sie müssen den Termin durch Klicken dieses Links bestätigen!"."\n"."\n";
-	$parents_message.= esc_url_raw($link) . "\n\n";
-	$parents_message.= "Beste Grüße";
-	//echo $parents_message."<hr>";
-	// Send the email
-	$parent_mail_sent = wp_mail($parentEmail, 'Elternsprechtag', $parents_message, $headers);
+	$teacher_mail_sent = wp_mail( $teacher_email, $teacher_subject, $teacher_message, $headers );
+	$parent_mail_sent = wp_mail( $parent_email, $parent_subject, $parent_message, $headers );
 	if ( ! $teacher_mail_sent || ! $parent_mail_sent ) {
 		$failed = array();
 		if ( ! $teacher_mail_sent ) {

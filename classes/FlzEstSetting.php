@@ -16,7 +16,7 @@ class FlzEstSetting extends FlzWpdbObject {
 	protected static function get_table_schema(): string {
 		return "(id INT(11) NOT NULL AUTO_INCREMENT,
             name VARCHAR(255) NOT NULL,
-            value VARCHAR(255) NOT NULL,
+            value LONGTEXT NOT NULL,
             PRIMARY KEY (id))";
 	}
 
@@ -29,7 +29,9 @@ class FlzEstSetting extends FlzWpdbObject {
 			'ParentsDayEnd' => '20:00',
 			'TestMode' => '1',
 			'MailFrom' => is_email($mail_from) ? $mail_from : 'wordpress@example.invalid',
+			'BookingConfirmationNotice' => flzest_booking_confirmation_notice_default(),
 		);
+		$defaults = array_merge( $defaults, flzest_mail_template_defaults() );
 		flz_wpdb_objects\FlzWpdbTransaction::run(
 			static function () use ( $defaults ): void {
 				foreach ( $defaults as $name => $value ) {
