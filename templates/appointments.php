@@ -26,6 +26,9 @@ $flzest_appointment_row = static function ( FlzEstAppointment $appointment, int 
 	$parent_summary = $parent
 		? trim( (string) $parent->name . ', ' . (string) $parent->firstName . ' (' . (string) $parent->studentName . ' - ' . (string) $parent->studentClass . ')' )
 		: 'Freier Slot';
+	if ( $parent ) {
+		$parent_summary .= $appointment->isConfirmed ? ' – bestätigt' : ' – nicht bestätigt';
+	}
 	$clear_action = '';
 
 	$clear_action .= $flzest_ui->action_form_button(

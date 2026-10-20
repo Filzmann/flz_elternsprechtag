@@ -3,6 +3,31 @@ set -euo pipefail
 
 repo="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$repo"
+
+echo "=== PHP syntax ==="
 find . -path './.git' -prune -o -path './vendor' -prune -o -type f -name '*.php' -print0 | xargs -0 -r -n1 php -l >/dev/null
+echo "PHP syntax: OK"
+
+echo
+echo "=== Component smoke tests ==="
+for test_file in tests/*-smoke.php; do
+	php "$test_file"
+done
+
+echo
+echo "=== Appointments admin contract ==="
+php scripts/test-admin-appointments-confirmation-column.php
+
+if [[ -x vendor/bin/phpcs ]]; then
+	echo
+	echo "=== PHPCS security baseline ==="
+	vendor/bin/phpcs --standard=phpcs.xml.dist
+else
+	echo
+	echo "PHPCS: skipped (run composer install to provide vendor/bin/phpcs)"
+fi
+
+echo
+echo "=== Diff hygiene ==="
 git diff --check
-echo 'OK: recovered EST source syntax check completed.'
+echo 'OK: fast component checks completed.'

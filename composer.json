@@ -1,0 +1,15 @@
+{
+  "name": "tagore-gymnasium/flz-elternsprechtag",
+  "description": "School-independent WordPress parent consultation appointments with synthetic demo seeds.",
+  "type": "wordpress-plugin",
+  "license": "GPL-2.0-or-later",
+  "require-dev": {
+    "dealerdirect/phpcodesniffer-composer-installer": "^1.1",
+    "wp-coding-standards/wpcs": "^3.0"
+  },
+  "config": {
+    "allow-plugins": {
+      "dealerdirect/phpcodesniffer-composer-installer": true
+    }
+  }
+}
