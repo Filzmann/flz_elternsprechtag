@@ -25,6 +25,22 @@ verwenden. Pro Fall genau ein Ergebnis markieren und Abweichungen begründen.
 | Shared-Provider-/Consumer-Verträge | | |
 | Reproduzierbarkeit und Archivinhalt | | |
 
+### Technischer Release-Nachweis vom 20. Oktober 2026
+
+- GitHub-Actions-`main`-Lauf
+  [`39440141976`](https://github.com/Filzmann/flz_elternsprechtag/actions/runs/39440141976)
+  für den Releasekandidaten-Commit
+  `ed61fb4d019c674c9e11791afca35008210c155d`: erfolgreich.
+- Zwei Bauten von `flz_elternsprechtag-1.2.0-rc.14.zip` waren bytegleich;
+  SHA-256: `b64e6eeb57ad52770807d7848566d299b625b491a9c44bbe9f3f9e32d7e13f7a`.
+- In einer isolierten lokalen DDEV-WordPress-Instanz wurde
+  `1.2.0-rc.2` installiert und mit einer ausschließlich synthetischen,
+  bestätigten Buchung auf `1.2.0-rc.14` aktualisiert. Die Buchung sowie ihre
+  Lehrkraft- und Elternbeziehung blieben erhalten; Deaktivierung und
+  Reaktivierung löschten sie nicht.
+- Der Frontend-Shortcode `[flzest]` renderte nach dem Upgrade eine
+  Lehrkraftauswahl und eine verständliche Validierungsmeldung.
+
 ## Manuelle Prüffälle
 
 ### Technischer ZIP-Teilnachweis vom 22. August 2026
