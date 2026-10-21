@@ -12,15 +12,17 @@ function flzest_probeunterricht_form( $atts ): false|string {
 	$frontend_notice = '';
 	try {
 		$nextEST = FlzEstSetting::get_value_by_name( 'NextParentsDay' );
-		if ( isset( $_GET['appointment_id'], $_GET['token'] ) ) {
-			$appointment = FlzEstAppointment::get_by_id( absint( wp_unslash( $_GET['appointment_id'] ) ) );
-			if ( ! $appointment instanceof FlzEstAppointment ) {
-				$frontend_notice = flz_ui()->notice( 'Der Bestätigungslink ist ungültig.', 'error' );
-			} else {
-				$frontend_notice = $appointment->activate(
-					sanitize_text_field( wp_unslash( $_GET['token'] ) )
-				);
+		if ( isset( $_GET['appointment_id'] ) || isset( $_GET['token'] ) ) {
+			$activation_success = false;
+			if ( isset( $_GET['appointment_id'], $_GET['token'] ) ) {
+				$appointment = FlzEstAppointment::get_by_id( absint( wp_unslash( $_GET['appointment_id'] ) ) );
+				$token = sanitize_text_field( wp_unslash( $_GET['token'] ) );
+				if ( $appointment instanceof FlzEstAppointment ) {
+					$activation_success = $appointment->activate_if_valid( $token );
+				}
 			}
+
+			return flzest_render_activation_confirmation( $activation_success );
 		}
 
 		$request_method = isset( $_SERVER['REQUEST_METHOD'] )
@@ -121,6 +123,30 @@ function flzest_has_appointment_unavailable_cause( Throwable $error ): bool {
 	return false;
 }
 
+function flzest_render_activation_confirmation( bool $activation_success ): string {
+	$target = FlzEstSetting::get_value_by_name( 'ActivationRedirectTarget' );
+	$target = in_array( $target, array( 'form', 'home' ), true ) ? $target : 'form';
+	$form_url = get_permalink();
+	$form_url = is_string( $form_url ) && '' !== $form_url ? $form_url : home_url( '/' );
+	$redirect_url = 'home' === $target ? home_url( '/' ) : $form_url;
+	$activation_message = trim( FlzEstSetting::get_value_by_name( 'ActivationConfirmationMessage' ) );
+	if ( '' === $activation_message ) {
+		$activation_message = flzest_activation_confirmation_message_default();
+	}
+
+	return flzest_get_frontend_template(
+		'frontend-confirmation',
+		array(
+			'activation_success' => $activation_success,
+			'activation_message' => $activation_message,
+			'redirect_url'       => $redirect_url,
+			'redirect_label'     => 'home' === $target
+				? __( 'Zur Startseite', 'flz-elternsprechtag' )
+				: __( 'Zum Elternsprechtag', 'flz-elternsprechtag' ),
+		)
+	);
+}
+
 function sendMails( FlzEstAppointment $selected ): void {
 	if (!$selected->teacher instanceof FlzEstTeacher || !$selected->parent instanceof FlzEstParent) {
 		throw new UnexpectedValueException('Für den E-Mail-Versand fehlen Lehrkraft oder Elterndatensatz.');
@@ -161,7 +187,7 @@ function sendMails( FlzEstAppointment $selected ): void {
 	);
 	$headers = array(
 		'From: ' . $site_name . ' <' . $from_email . '>',
-		'Content-Type: text/html; charset=UTF-8',
+		'MIME-Version: 1.0',
 	);
 	$teacher_subject = flzest_render_mail_template( FlzEstSetting::get_value_by_name( 'MailTeacherSubject' ), $context );
 	$teacher_message = wpautop( flzest_render_mail_template( FlzEstSetting::get_value_by_name( 'MailTeacherBody' ), $context ) );
@@ -171,8 +197,10 @@ function sendMails( FlzEstAppointment $selected ): void {
 		throw new UnexpectedValueException( 'Eine konfigurierte Mailvorlage ist leer.' );
 	}
 
-	$teacher_mail_sent = wp_mail( $teacher_email, $teacher_subject, $teacher_message, $headers );
-	$parent_mail_sent = wp_mail( $parent_email, $parent_subject, $parent_message, $headers );
+	$teacher_boundary = 'flzest-' . wp_generate_uuid4();
+	$parent_boundary = 'flzest-' . wp_generate_uuid4();
+	$teacher_mail_sent = wp_mail( $teacher_email, $teacher_subject, flzest_mail_multipart_alternative_body( $teacher_message, $teacher_boundary ), array_merge( $headers, array( 'Content-Type: multipart/alternative; boundary="' . $teacher_boundary . '"' ) ) );
+	$parent_mail_sent = wp_mail( $parent_email, $parent_subject, flzest_mail_multipart_alternative_body( $parent_message, $parent_boundary ), array_merge( $headers, array( 'Content-Type: multipart/alternative; boundary="' . $parent_boundary . '"' ) ) );
 	if ( ! $teacher_mail_sent || ! $parent_mail_sent ) {
 		$failed = array();
 		if ( ! $teacher_mail_sent ) {

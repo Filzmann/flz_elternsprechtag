@@ -21,6 +21,11 @@ class FlzEstSetting extends FlzWpdbObject {
 	}
 
 	protected static function afterCreate(): void {
+		static::ensure_defaults();
+	}
+
+	/** @return array<string,string> */
+	public static function default_values(): array {
 		$mail_from = sanitize_email((string) get_option('admin_email'));
 		$defaults = array(
 			'SlotLength' => '20',
@@ -30,8 +35,15 @@ class FlzEstSetting extends FlzWpdbObject {
 			'TestMode' => '1',
 			'MailFrom' => is_email($mail_from) ? $mail_from : 'wordpress@example.invalid',
 			'BookingConfirmationNotice' => flzest_booking_confirmation_notice_default(),
+			'ActivationConfirmationMessage' => flzest_activation_confirmation_message_default(),
+			'ActivationRedirectTarget' => 'form',
 		);
-		$defaults = array_merge( $defaults, flzest_mail_template_defaults() );
+
+		return array_merge( $defaults, flzest_mail_template_defaults() );
+	}
+
+	public static function ensure_defaults(): void {
+		$defaults = static::default_values();
 		flz_wpdb_objects\FlzWpdbTransaction::run(
 			static function () use ( $defaults ): void {
 				foreach ( $defaults as $name => $value ) {

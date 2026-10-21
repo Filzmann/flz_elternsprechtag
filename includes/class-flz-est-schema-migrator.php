@@ -18,6 +18,7 @@ final class FlzEstSchemaMigrator
 		}
 
 		FlzEstSetting::create_table();
+		FlzEstSetting::ensure_defaults();
 		FlzEstTeacher::create_table();
 		FlzEstParent::create_table();
 		FlzEstAppointment::create_table();

@@ -228,18 +228,34 @@ class flzEstAppointment extends FlzWpdbObject
 
 	public function activate($token): string
 	{
-		$token_valid = is_string( $token )
-			&& $this->confirmationToken !== null
-			&& hash_equals( $this->confirmationToken, $token );
-		if ( $token_valid && $this->confirmationExpiration !== null && $this->confirmationExpiration >= time() )
-		{
-			$this->isConfirmed=true;
-			$this->confirmationToken = null;
-			$this->confirmationExpiration = 0;
-			$this->save();
+		if ( $this->activate_if_valid( $token ) ) {
 			return flz_ui()->notice( 'Der Termin wurde bestätigt. Sie können das Fenster jetzt schließen!', 'success' );
 		}
-		else return flz_ui()->notice( 'Fehler bei der Bestätigung. Bitte Link nochmal testen oder Termin erneut registrieren.', 'error' );
+
+		return flz_ui()->notice( 'Fehler bei der Bestätigung. Bitte Link nochmal testen oder Termin erneut registrieren.', 'error' );
+	}
+
+	public function activate_if_valid( $token ): bool
+	{
+		if ( ! $this->can_activate( $token ) ) {
+			return false;
+		}
+
+		$this->isConfirmed = true;
+		$this->confirmationToken = null;
+		$this->confirmationExpiration = 0;
+		$this->save();
+
+		return true;
+	}
+
+	public function can_activate( $token ): bool
+	{
+		return is_string( $token )
+			&& $this->confirmationToken !== null
+			&& $this->confirmationExpiration !== null
+			&& $this->confirmationExpiration >= time()
+			&& hash_equals( $this->confirmationToken, $token );
 	}
 
 }

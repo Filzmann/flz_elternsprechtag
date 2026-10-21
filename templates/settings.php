@@ -30,7 +30,7 @@ $flzest_mail_template_groups = array(
 				<?php if ( 'checkbox' === $flzest_setting_args['type'] ) : ?>
 					<?php echo $flzest_ui->hidden( 'settings[' . $setting->id . ']', '0' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Renderer escaped das Hidden Field. ?>
 				<?php endif; ?>
-				<?php if ( 'BookingConfirmationNotice' === $setting->name ) : ?>
+				<?php if ( in_array( $setting->name, array( 'BookingConfirmationNotice', 'ActivationConfirmationMessage' ), true ) ) : ?>
 					<?php wp_editor( (string) $setting->value, 'flzest-setting-' . (int) $setting->id, array( 'textarea_name' => $flzest_setting_args['name'], 'textarea_rows' => 4, 'media_buttons' => false, 'teeny' => true, 'tinymce' => array( 'toolbar1' => 'bold,italic,bullist,numlist,link,unlink' ), 'quicktags' => true ) ); ?>
 				<?php else : ?>
 					<?php echo $flzest_ui->field( $flzest_setting_args ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Renderer escaped die Komponente. ?>

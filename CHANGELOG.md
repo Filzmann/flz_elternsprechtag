@@ -6,6 +6,16 @@ ergänzt.
 
 ## Unreleased
 
+## 1.2.0-rc.15
+
+- Buchungs-E-Mails enthalten nun standardmäßig eine HTML- und eine
+  Klartextvariante (`multipart/alternative`).
+- Der Bestätigungslink zeigt eine eigenständige Aktivierungsseite statt des
+  Buchungsformulars. Text sowie das Buttonziel (Startseite oder frisches
+  Elternsprechtag-Formular) sind in den EST-Einstellungen konfigurierbar.
+- Die beiden neuen Einstellungen werden beim Upgrade additiv ergänzt; bereits
+  gespeicherte Werte bleiben unverändert.
+
 ## 1.2.0-rc.14
 
 - Bearbeitbare Mailtexte und der Hinweis auf der Buchungsseite verwenden jetzt

@@ -69,3 +69,33 @@ function flzest_booking_confirmation_notice_default(): string
 {
 	return 'Nach der Buchung erhalten Sie eine E-Mail mit einem Bestätigungslink. Erst nach dem Anklicken dieses Links ist Ihr Termin verbindlich bestätigt.';
 }
+
+function flzest_activation_confirmation_message_default(): string
+{
+	return 'Ihr Termin wurde erfolgreich bestätigt.';
+}
+
+function flzest_mail_plaintext_fallback( string $html ): string
+{
+	$text = preg_replace( '/<\s*br\s*\/?>/i', "\n", $html );
+	$text = preg_replace( '/<\/p\s*>/i', "\n\n", (string) $text );
+	$text = html_entity_decode( strip_tags( (string) $text ), ENT_QUOTES | ENT_HTML5, 'UTF-8' );
+	$text = preg_replace( "/\r\n?|[ \t]+\n/", "\n", $text );
+
+	return trim( (string) $text );
+}
+
+function flzest_mail_multipart_alternative_body( string $html, string $boundary ): string
+{
+	$plaintext = flzest_mail_plaintext_fallback( $html );
+
+	return '--' . $boundary . "\r\n"
+		. "Content-Type: text/plain; charset=UTF-8\r\n"
+		. "Content-Transfer-Encoding: 8bit\r\n\r\n"
+		. $plaintext . "\r\n\r\n"
+		. '--' . $boundary . "\r\n"
+		. "Content-Type: text/html; charset=UTF-8\r\n"
+		. "Content-Transfer-Encoding: 8bit\r\n\r\n"
+		. $html . "\r\n\r\n"
+		. '--' . $boundary . "--\r\n";
+}

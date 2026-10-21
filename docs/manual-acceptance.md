@@ -4,6 +4,11 @@ Dieses Formular dokumentiert fachliche, visuelle und technische Abnahme des
 exakten Release-Artefakts. Nur synthetische Eltern-, Kind- und Lehrkräftedaten
 verwenden. Pro Fall genau ein Ergebnis markieren und Abweichungen begründen.
 
+> Releasekandidat `1.2.0-rc.15`: Die automatisierten Komponentennachweise sind
+> lokal vorbereitet. Die Abnahme des exakten ZIP (Frischinstallation, Upgrade,
+> Mailpit und sichtbare Aktivierungsseite) ist noch offen und darf erst nach
+> dem Build mit dessen Commit, SHA-256 und Umgebung ergänzt werden.
+
 ## Kopfdaten
 
 | Feld | Eintrag |

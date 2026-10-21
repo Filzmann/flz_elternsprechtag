@@ -32,4 +32,9 @@ $assert( flzest_is_mail_template_setting( 'MailParentBody' ), 'Eine bekannte Mai
 $assert( ! flzest_is_mail_template_setting( 'UnknownSetting' ), 'Eine unbekannte Einstellung wurde als Mailvorlage erkannt.' );
 $assert( str_contains( flzest_booking_confirmation_notice_default(), 'Bestätigungslink' ), 'Der Bestätigungshinweis fehlt.' );
 
+$multipart = flzest_mail_multipart_alternative_body( '<p>Bestätigung: https://example.test/confirm</p>', 'flzest-test-boundary' );
+$assert( str_contains( $multipart, 'Content-Type: text/plain; charset=UTF-8' ), 'Der Plaintext-Fallback fehlt.' );
+$assert( str_contains( $multipart, 'Content-Type: text/html; charset=UTF-8' ), 'Der HTML-Mailteil fehlt.' );
+$assert( str_contains( $multipart, 'Bestätigung: https://example.test/confirm' ), 'Der Plaintext-Fallback verliert den Mailinhalt.' );
+
 echo "OK: flz_elternsprechtag mail templates smoke test\n";

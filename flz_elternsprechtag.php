@@ -2,7 +2,7 @@
 /*
 Plugin Name: FLZ Elternsprechtag
 Description: Schulunabhängige Terminverwaltung für Elternsprechtage mit synthetischen Demodaten
-Version: 1.2.0-rc.14
+Version: 1.2.0-rc.15
 Author: Filzmann
 License: GPLv2 or later
 Requires Plugins: flz_wpdb_objects, flz_ui_components
@@ -14,8 +14,8 @@ namespace flz_est;
 
 defined( 'ABSPATH' ) || exit;
 
-const FLZ_EST_VERSION = '1.2.0-rc.14';
-const FLZ_EST_DB_VERSION = '2.3.0';
+const FLZ_EST_VERSION = '1.2.0-rc.15';
+const FLZ_EST_DB_VERSION = '2.4.0';
 const FLZ_EST_MIN_WPDB_OBJECTS_VERSION = '2.1.0';
 const FLZ_EST_MIN_UI_COMPONENTS_VERSION = '0.2.1-rc.3';
 

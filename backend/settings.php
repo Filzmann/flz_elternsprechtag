@@ -136,6 +136,21 @@ function flzest_validate_setting_value(string $name, string $value): string
 
 		return $value;
 	}
+	if ( 'ActivationConfirmationMessage' === $name ) {
+		$value = wp_kses_post( $value );
+		if ( '' === $value ) {
+			throw new UnexpectedValueException( 'Der Aktivierungshinweis darf nicht leer sein.' );
+		}
+
+		return $value;
+	}
+	if ( 'ActivationRedirectTarget' === $name ) {
+		if ( ! in_array( $value, array( 'form', 'home' ), true ) ) {
+			throw new UnexpectedValueException( 'Das Ziel nach der Aktivierung ist ungültig.' );
+		}
+
+		return $value;
+	}
 	if ( flzest_is_mail_template_setting( $name ) ) {
 		if ( str_ends_with( $name, 'Subject' ) ) {
 			$value = sanitize_text_field( $value );
@@ -226,11 +241,21 @@ function flzest_setting_input_args(string $name, string $value): array
 				'input_class' => 'large-text code',
 			);
 		case 'BookingConfirmationNotice':
+		case 'ActivationConfirmationMessage':
 			return array(
 				'type'        => 'textarea',
 				'value'       => $value,
 				'rows'        => 4,
 				'input_class' => 'large-text',
+			);
+		case 'ActivationRedirectTarget':
+			return array(
+				'type'    => 'select',
+				'value'   => $value,
+				'options' => array(
+					'form' => 'Zum Elternsprechtag-Formular',
+					'home' => 'Zur Startseite',
+				),
 			);
 		default:
 			return array(
@@ -248,6 +273,8 @@ function flzest_setting_label( string $name ): string
 		'MailParentSubject'  => 'Betreff: Mail an Elternteil',
 		'MailParentBody'     => 'Text: Mail an Elternteil',
 		'BookingConfirmationNotice' => 'Hinweis zur Bestätigungsmail auf der Buchungsseite',
+		'ActivationConfirmationMessage' => 'Text nach erfolgreicher Aktivierung',
+		'ActivationRedirectTarget' => 'Buttonziel nach erfolgreicher Aktivierung',
 	);
 
 	return $labels[ $name ] ?? $name;
