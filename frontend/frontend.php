@@ -147,6 +147,30 @@ function flzest_render_activation_confirmation( bool $activation_success ): stri
 	);
 }
 
+/**
+ * Sends an HTML message with a separate plaintext alternative.
+ *
+ * Fluent SMTP forwards multipart messages to API providers as distinct HTML
+ * and text fields. Supplying a pre-serialized MIME body makes that text field
+ * unavailable to providers such as Brevo.
+ *
+ * @param array<int,string> $headers
+ */
+function flzest_send_html_mail_with_plaintext_fallback( string $to, string $subject, string $html, array $headers ): bool {
+	$set_plaintext_fallback = static function ( $phpmailer ) use ( $html ): void {
+		$phpmailer->isHTML( true );
+		$phpmailer->AltBody     = flzest_mail_plaintext_fallback( $html );
+		$phpmailer->ContentType = 'multipart/alternative';
+	};
+
+	add_action( 'phpmailer_init', $set_plaintext_fallback, PHP_INT_MAX );
+	try {
+		return wp_mail( $to, $subject, $html, $headers );
+	} finally {
+		remove_action( 'phpmailer_init', $set_plaintext_fallback, PHP_INT_MAX );
+	}
+}
+
 function sendMails( FlzEstAppointment $selected ): void {
 	if (!$selected->teacher instanceof FlzEstTeacher || !$selected->parent instanceof FlzEstParent) {
 		throw new UnexpectedValueException('Für den E-Mail-Versand fehlen Lehrkraft oder Elterndatensatz.');
@@ -188,6 +212,7 @@ function sendMails( FlzEstAppointment $selected ): void {
 	$headers = array(
 		'From: ' . $site_name . ' <' . $from_email . '>',
 		'MIME-Version: 1.0',
+		'Content-Type: text/html; charset=UTF-8',
 	);
 	$teacher_subject = flzest_render_mail_template( FlzEstSetting::get_value_by_name( 'MailTeacherSubject' ), $context );
 	$teacher_message = wpautop( flzest_render_mail_template( FlzEstSetting::get_value_by_name( 'MailTeacherBody' ), $context ) );
@@ -197,10 +222,8 @@ function sendMails( FlzEstAppointment $selected ): void {
 		throw new UnexpectedValueException( 'Eine konfigurierte Mailvorlage ist leer.' );
 	}
 
-	$teacher_boundary = 'flzest-' . wp_generate_uuid4();
-	$parent_boundary = 'flzest-' . wp_generate_uuid4();
-	$teacher_mail_sent = wp_mail( $teacher_email, $teacher_subject, flzest_mail_multipart_alternative_body( $teacher_message, $teacher_boundary ), array_merge( $headers, array( 'Content-Type: multipart/alternative; boundary="' . $teacher_boundary . '"' ) ) );
-	$parent_mail_sent = wp_mail( $parent_email, $parent_subject, flzest_mail_multipart_alternative_body( $parent_message, $parent_boundary ), array_merge( $headers, array( 'Content-Type: multipart/alternative; boundary="' . $parent_boundary . '"' ) ) );
+	$teacher_mail_sent = flzest_send_html_mail_with_plaintext_fallback( $teacher_email, $teacher_subject, $teacher_message, $headers );
+	$parent_mail_sent  = flzest_send_html_mail_with_plaintext_fallback( $parent_email, $parent_subject, $parent_message, $headers );
 	if ( ! $teacher_mail_sent || ! $parent_mail_sent ) {
 		$failed = array();
 		if ( ! $teacher_mail_sent ) {

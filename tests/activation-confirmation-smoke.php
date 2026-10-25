@@ -19,7 +19,7 @@ foreach (
 	array(
 		'flzest_render_activation_confirmation',
 		'activate_if_valid',
-		'flzest_mail_multipart_alternative_body',
+		'flzest_send_html_mail_with_plaintext_fallback',
 		'ActivationConfirmationMessage',
 		'ActivationRedirectTarget',
 	) as $needle
