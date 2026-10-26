@@ -60,5 +60,9 @@ function flzest_maybe_enqueue_admin_ui_assets(string $hook_suffix): void
 {
 	if (str_contains($hook_suffix, 'flzest_') && function_exists('flz_ui_components_enqueue_assets')) {
 		flz_ui_components_enqueue_assets();
+		wp_add_inline_style(
+			'flz-ui-components',
+			'.flzest-teacher-csv-removable > td { background: var(--flz-ui-color-danger-bg); } .flzest-teacher-csv-protected > td { background: var(--flz-ui-color-warning-bg); } .flzest-teacher-csv-status { display: inline-flex; align-items: center; gap: .2rem; margin-left: .4rem; font-weight: 700; } .flzest-teacher-csv-removable .flzest-teacher-csv-status { color: var(--flz-ui-color-danger); } .flzest-teacher-csv-protected .flzest-teacher-csv-status { color: var(--flz-ui-color-warning-hover); }'
+		);
 	}
 }

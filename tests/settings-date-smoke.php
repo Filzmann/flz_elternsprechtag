@@ -62,8 +62,8 @@ foreach ( array( 'teachers.php', 'appointments.php' ) as $csv_template_name ) {
 	$csv_template = file_get_contents( __DIR__ . '/../templates/' . $csv_template_name );
 	$table_position     = 'appointments.php' === $csv_template_name ? strpos( $csv_template, 'id="appointmentTable"' ) : strpos( $csv_template, '<table class="widefat striped flz-ui-admin-table">' );
 	flzest_settings_date_assert( 1 === substr_count( $csv_template, '->csv_panel(' ) );
-	flzest_settings_date_assert( false !== strpos( $csv_template, "'name' => 'csv_dry_run'" ) );
-	flzest_settings_date_assert( false !== strpos( $csv_template, "'checked' => true" ) );
+	flzest_settings_date_assert( false === strpos( $csv_template, "'name' => 'csv_dry_run'" ) );
+	flzest_settings_date_assert( false === strpos( $csv_template, "'checked' => true" ) );
 	flzest_settings_date_assert( false !== strpos( $csv_template, "'submit_name' => 'submit_csv'" ) );
 	flzest_settings_date_assert( false === strpos( $csv_template, 'submit_csv_dry_run' ) );
 	flzest_settings_date_assert( false !== $table_position );

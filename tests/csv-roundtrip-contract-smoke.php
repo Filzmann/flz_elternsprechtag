@@ -126,8 +126,9 @@ if ( false !== flzest_parse_appointment_csv( $legacy_appointment_rows )[0]['book
 }
 
 $teacher_backend = file_get_contents( dirname( __DIR__ ) . '/backend/teachers.php' );
-if ( false === $teacher_backend ) {
-	throw new RuntimeException( 'Der Lehrkräfte-Importcontroller konnte nicht gelesen werden.' );
+$teacher_template = file_get_contents( dirname( __DIR__ ) . '/templates/teachers.php' );
+if ( false === $teacher_backend || false === $teacher_template ) {
+	throw new RuntimeException( 'Lehrkräfte-Importcontroller oder -template konnte nicht gelesen werden.' );
 }
 foreach (
 	array(
@@ -138,6 +139,14 @@ foreach (
 		"FlzCsvImportStage::store( 'flzest:teachers'",
 		"FlzCsvImportStage::consume( 'flzest:teachers'",
 		'flzest_teacher_csv_proof_hash',
+		'flzest_plan_missing_teacher_deletions',
+		'30 * DAY_IN_SECONDS',
+		"'unchanged' =>",
+		'Lehrkräfte bleiben unverändert',
+		'Die vorhandenen Lehrkräftedaten enthalten die E-Mail-Adresse "%s" mehrfach.',
+		'flzest_requested_protected_teacher_csv_deletions',
+		'flzest_delete_teacher_csv_candidates',
+		'FlzEstAppointment::get_all_by()',
 		'FlzWpdbTransaction::run',
 	) as $required_contract
 ) {
@@ -148,10 +157,35 @@ foreach (
 if ( str_contains( $teacher_backend, '$existing_teacher->delete()' ) ) {
 	throw new RuntimeException( 'Der Lehrkräfte-Import löscht weiterhin nicht aufgeführte Bestandsdaten.' );
 }
+if ( str_contains( $teacher_template, "'name' => 'csv_dry_run'" ) ) {
+	throw new RuntimeException( 'Die Lehrkräfte-CSV bietet weiterhin eine entbehrliche Dry-Run-Auswahl an.' );
+}
+foreach (
+	array(
+		"'confirm_teacher_csv_import' => '1'",
+		'button_save( array(',
+		'Lehrkräfte-CSV prüfen',
+		'aktualisiert oder neu angelegt',
+		"'name' => 'delete_missing_teachers'",
+		"'name' => 'delete_protected_missing_teachers[]'",
+		'Geschützte Lehrkräfte einschließlich aller ihrer Termine endgültig löschen',
+		'flzest-teacher-csv-removable',
+		'flzest-teacher-csv-protected',
+		'dashicons-trash',
+		'dashicons-lock',
+		'Löschkandidat aus letzter CSV-Prüfung',
+		'Geschützt wegen eines künftigen oder höchstens 30 Tage zurückliegenden Termins',
+	) as $required_teacher_template_contract
+) {
+	if ( ! str_contains( $teacher_template, $required_teacher_template_contract ) ) {
+		throw new RuntimeException( 'Lehrkräfte-CSV-Oberflächenvertrag fehlt: ' . $required_teacher_template_contract );
+	}
+}
 
 $appointment_backend = file_get_contents( dirname( __DIR__ ) . '/backend/appointments.php' );
-if ( false === $appointment_backend ) {
-	throw new RuntimeException( 'Der Termin-Importcontroller konnte nicht gelesen werden.' );
+$appointment_template = file_get_contents( dirname( __DIR__ ) . '/templates/appointments.php' );
+if ( false === $appointment_backend || false === $appointment_template ) {
+	throw new RuntimeException( 'Termin-Importcontroller oder -template konnte nicht gelesen werden.' );
 }
 foreach (
 	array(
@@ -168,6 +202,11 @@ foreach (
 ) {
 	if ( ! str_contains( $appointment_backend, $required_contract ) ) {
 		throw new RuntimeException( 'Termin-Roundtripvertrag fehlt: ' . $required_contract );
+	}
+}
+foreach ( array( "'confirm_csv_import' => '1'", 'button_save( array(' ) as $required_appointment_submit_contract ) {
+	if ( ! str_contains( $appointment_template, $required_appointment_submit_contract ) ) {
+		throw new RuntimeException( 'Die Termin-CSV-Bestätigung ist kein verlässlicher Submit-Request: ' . $required_appointment_submit_contract );
 	}
 }
 

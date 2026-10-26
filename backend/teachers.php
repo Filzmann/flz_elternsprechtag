@@ -145,10 +145,30 @@ function processTeacherCsvFile(): array|null
 			return array(
 				'type' => 'success',
 				'message' => sprintf(
-					'Dry-Run erfolgreich: %d Lehrkräfte werden aktualisiert, %d neu angelegt, %d bestehende bleiben zusätzlich erhalten.',
+					'Dry-Run erfolgreich: %d Lehrkräfte werden aktualisiert, %d neu angelegt, %d Lehrkräfte bleiben unverändert. %d nicht in der CSV enthaltene Lehrkräfte sind markiert; davon können %d nach ausdrücklicher Bestätigung gelöscht werden, %d bleiben wegen künftiger oder weniger als 30 Tage zurückliegender Termine geschützt.',
 					$plan['updated'],
 					$plan['created'],
-					$plan['preserved']
+					$plan['unchanged'],
+					$plan['preserved'],
+					count( $plan['removable_missing'] ),
+					count( $plan['protected_missing'] )
+				),
+				'deletable_missing' => count( $plan['removable_missing'] ),
+				'protected_missing' => count( $plan['protected_missing'] ),
+				'removable_missing_teacher_ids' => array_map(
+					static fn( FlzEstTeacher $teacher ): int => (int) $teacher->id,
+					$plan['removable_missing']
+				),
+				'protected_missing_teacher_ids' => array_map(
+					static fn( FlzEstTeacher $teacher ): int => (int) $teacher->id,
+					$plan['protected_missing']
+				),
+				'protected_missing_teachers' => array_map(
+					static fn( FlzEstTeacher $teacher ): array => array(
+						'id'    => (int) $teacher->id,
+						'label' => trim( (string) $teacher->firstName . ' ' . (string) $teacher->name ) . ' (' . (string) $teacher->email . ')',
+					),
+					$plan['protected_missing']
 				),
 			);
 		}
@@ -156,13 +176,15 @@ function processTeacherCsvFile(): array|null
 		$stage = FlzCsvImportStage::consume( 'flzest:teachers', get_current_user_id() );
 		if ( ! is_array( $stage ) ) { throw new UnexpectedValueException( 'Der geprüfte CSV-Stand ist abgelaufen. Bitte laden Sie die Datei erneut hoch und führen Sie den Dry-Run aus.' ); }
 		$teacher_rows = $stage['rows']; $proof_hash = $stage['proof']; $plan = flzest_plan_teacher_csv_import( $teacher_rows );
+		$delete_missing_teachers = isset( $_POST['delete_missing_teachers'] );
+		$delete_protected_missing_teacher_ids = flzest_requested_protected_teacher_csv_deletions( $plan );
 
 		flz_wpdb_objects\FlzWpdbTransaction::run(
-			static function () use ( $plan, $proof_hash, $teacher_rows ): void {
+			static function () use ( $plan, $proof_hash, $teacher_rows, $delete_missing_teachers, $delete_protected_missing_teacher_ids ): void {
 				if ( ! hash_equals( $proof_hash, flzest_teacher_csv_proof_hash( $teacher_rows ) ) ) {
 					throw new UnexpectedValueException( 'Der Lehrkräftebestand hat sich seit dem Dry-Run verändert.' );
 				}
-				flzest_apply_teacher_csv_import_plan( $plan );
+				flzest_apply_teacher_csv_import_plan( $plan, $delete_missing_teachers, $delete_protected_missing_teacher_ids );
 			},
 			'Aktualisieren und Ergänzen der Lehrkräfte durch einen CSV-Import'
 		);
@@ -171,9 +193,11 @@ function processTeacherCsvFile(): array|null
 		return array(
 			'type' => 'success',
 			'message' => sprintf(
-				'Import abgeschlossen: %d Lehrkräfte aktualisiert, %d neu angelegt.',
+				'Import abgeschlossen: %d Lehrkräfte aktualisiert, %d neu angelegt%s.',
 				$plan['updated'],
-				$plan['created']
+				$plan['created'],
+				( $delete_missing_teachers ? sprintf( ', %d nicht mehr enthaltene Lehrkräfte mit ausschließlich mehr als 30 Tage vergangenen Terminen gelöscht', count( $plan['removable_missing'] ) ) : '' )
+				. ( ! empty( $delete_protected_missing_teacher_ids ) ? sprintf( ', %d ausgewählte geschützte Lehrkräfte einschließlich aller ihrer Termine endgültig gelöscht', count( $delete_protected_missing_teacher_ids ) ) : '' )
 			),
 		);
 	} catch (Throwable $error) {
@@ -187,24 +211,79 @@ function processTeacherCsvFile(): array|null
 }
 
 /**
- * @param array{teachers:array<int,FlzEstTeacher>,created:int,updated:int,preserved:int} $plan
+ * @param array{teachers:array<int,FlzEstTeacher>,created:int,updated:int,unchanged:int,preserved:int,removable_missing:array<int,FlzEstTeacher>,protected_missing:array<int,FlzEstTeacher>} $plan
  */
-function flzest_apply_teacher_csv_import_plan( array $plan ): void {
+function flzest_apply_teacher_csv_import_plan( array $plan, bool $delete_missing_teachers = false, array $delete_protected_missing_teacher_ids = array() ): void {
 	foreach ( $plan['teachers'] as $teacher ) {
 		$teacher->save();
+	}
+	if ( $delete_missing_teachers ) {
+		flzest_delete_teacher_csv_candidates( $plan['removable_missing'] );
+	}
+	if ( ! empty( $delete_protected_missing_teacher_ids ) ) {
+		$protected_to_delete = array_filter(
+			$plan['protected_missing'],
+			static fn( FlzEstTeacher $teacher ): bool => in_array( (int) $teacher->id, $delete_protected_missing_teacher_ids, true )
+		);
+		flzest_delete_teacher_csv_candidates( $protected_to_delete );
+	}
+}
+
+/**
+ * Beschränkt die Auswahl auf geschützte Kandidaten des aktuellen, serverseitig
+ * erneut berechneten CSV-Plans. So kann kein manipuliertes Formular andere
+ * Lehrkräfte löschen.
+ *
+ * @param array{protected_missing:array<int,FlzEstTeacher>} $plan
+ * @return array<int,int>
+ */
+function flzest_requested_protected_teacher_csv_deletions( array $plan ): array {
+	// phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Jede eingereichte ID wird unmittelbar darunter als positive Ganzzahl und gegen den serverseitigen Plan validiert.
+	$requested = isset( $_POST['delete_protected_missing_teachers'] ) ? wp_unslash( $_POST['delete_protected_missing_teachers'] ) : array();
+	if ( ! is_array( $requested ) ) {
+		throw new UnexpectedValueException( 'Die Auswahl geschützter Lehrkräfte ist ungültig.' );
+	}
+
+	$requested_ids = array();
+	foreach ( $requested as $teacher_id ) {
+		if ( ! is_scalar( $teacher_id ) || ! ctype_digit( (string) $teacher_id ) || 0 === (int) $teacher_id ) {
+			throw new UnexpectedValueException( 'Die Auswahl geschützter Lehrkräfte ist ungültig.' );
+		}
+		$requested_ids[] = (int) $teacher_id;
+	}
+	$requested_ids = array_values( array_unique( $requested_ids ) );
+	$allowed_ids = array_map( static fn( FlzEstTeacher $teacher ): int => (int) $teacher->id, $plan['protected_missing'] );
+	if ( array_diff( $requested_ids, $allowed_ids ) ) {
+		throw new UnexpectedValueException( 'Die Auswahl enthält keine geschützte Lehrkraft aus dem geprüften CSV-Stand.' );
+	}
+
+	return $requested_ids;
+}
+
+/** @param array<int,FlzEstTeacher> $teachers */
+function flzest_delete_teacher_csv_candidates( array $teachers ): void {
+	foreach ( $teachers as $teacher ) {
+		foreach ( FlzEstAppointment::get_all_by( array( 'teacher_id' => (int) $teacher->id ) ) as $appointment ) {
+			if ( $appointment instanceof FlzEstAppointment ) {
+				$appointment->delete();
+			}
+		}
+		$teacher->delete();
 	}
 }
 
 /**
  * @param array<int,array{gender:string,name:string,firstName:string,email:string}> $teacher_rows
- * @return array{teachers:array<int,FlzEstTeacher>,created:int,updated:int,preserved:int}
+ * @return array{teachers:array<int,FlzEstTeacher>,created:int,updated:int,unchanged:int,preserved:int,removable_missing:array<int,FlzEstTeacher>,protected_missing:array<int,FlzEstTeacher>}
  */
 function flzest_plan_teacher_csv_import( array $teacher_rows ): array {
 	$existing_by_email = array();
 	foreach ( FlzEstTeacher::get_all_by() as $teacher ) {
 		$email = strtolower( (string) $teacher->email );
 		if ( isset( $existing_by_email[ $email ] ) ) {
-			throw new UnexpectedValueException( 'Die vorhandenen Lehrkräftedaten enthalten eine doppelte E-Mail-Adresse.' );
+			throw new UnexpectedValueException(
+				sprintf( 'Die vorhandenen Lehrkräftedaten enthalten die E-Mail-Adresse "%s" mehrfach.', $email )
+			);
 		}
 		$existing_by_email[ $email ] = $teacher;
 	}
@@ -212,12 +291,17 @@ function flzest_plan_teacher_csv_import( array $teacher_rows ): array {
 	$teachers = array();
 	$created = 0;
 	$updated = 0;
+	$unchanged = 0;
 	foreach ( $teacher_rows as $teacher_data ) {
 		$email = $teacher_data['email'];
 		if ( isset( $existing_by_email[ $email ] ) ) {
 			$teacher = $existing_by_email[ $email ];
-			$teacher->assignPostData( $teacher_data, array( 'name', 'firstName', 'gender', 'email' ) );
 			unset( $existing_by_email[ $email ] );
+			if ( flzest_teacher_csv_row_is_unchanged( $teacher, $teacher_data ) ) {
+				++$unchanged;
+				continue;
+			}
+			$teacher->assignPostData( $teacher_data, array( 'name', 'firstName', 'gender', 'email' ) );
 			++$updated;
 		} else {
 			$teacher = new FlzEstTeacher( $teacher_data );
@@ -226,12 +310,55 @@ function flzest_plan_teacher_csv_import( array $teacher_rows ): array {
 		$teachers[] = $teacher;
 	}
 
+	$missing = array_values( $existing_by_email );
+	$missing_deletions = flzest_plan_missing_teacher_deletions( $missing );
+
 	return array(
 		'teachers' => $teachers,
 		'created' => $created,
 		'updated' => $updated,
-		'preserved' => count( $existing_by_email ),
+		'unchanged' => $unchanged,
+		'preserved' => count( $missing ),
+		'removable_missing' => $missing_deletions['removable'],
+		'protected_missing' => $missing_deletions['protected'],
 	);
+}
+
+/** @param array{gender:string,name:string,firstName:string,email:string} $teacher_data */
+function flzest_teacher_csv_row_is_unchanged( FlzEstTeacher $teacher, array $teacher_data ): bool {
+	return (string) $teacher->gender === (string) $teacher_data['gender']
+		&& (string) $teacher->name === (string) $teacher_data['name']
+		&& (string) $teacher->firstName === (string) $teacher_data['firstName']
+		&& strtolower( (string) $teacher->email ) === strtolower( (string) $teacher_data['email'] );
+}
+
+/**
+ * Fehlende Lehrkräfte dürfen nur entfernt werden, wenn sämtliche Termine
+ * mindestens 30 Tage vergangen sind. Künftige und aktuelle Buchungen bleiben
+ * damit unabhängig vom CSV-Abgleich geschützt.
+ *
+ * @param array<int,FlzEstTeacher> $teachers
+ * @return array{removable:array<int,FlzEstTeacher>,protected:array<int,FlzEstTeacher>}
+ */
+function flzest_plan_missing_teacher_deletions( array $teachers ): array {
+	$cutoff = current_time( 'timestamp' ) - ( 30 * DAY_IN_SECONDS );
+	$removable = array();
+	$protected = array();
+	foreach ( $teachers as $teacher ) {
+		$can_delete = true;
+		foreach ( FlzEstAppointment::get_all_by( array( 'teacher_id' => (int) $teacher->id ) ) as $appointment ) {
+			if ( $appointment instanceof FlzEstAppointment && (int) $appointment->end >= $cutoff ) {
+				$can_delete = false;
+				break;
+			}
+		}
+		if ( $can_delete ) {
+			$removable[] = $teacher;
+		} else {
+			$protected[] = $teacher;
+		}
+	}
+	return array( 'removable' => $removable, 'protected' => $protected );
 }
 
 /**
@@ -251,8 +378,21 @@ function flzest_teacher_csv_proof_hash( array $teacher_rows ): string {
 		FlzEstTeacher::get_all_by()
 	);
 	usort( $current_ids, static fn( array $left, array $right ): int => $left['id'] <=> $right['id'] );
+	$current_appointments = array_map(
+		static fn( FlzEstAppointment $appointment ): array => array(
+			'id'                      => (int) $appointment->id,
+			'teacher_id'              => (int) $appointment->getTeacher()?->id,
+			'parent_id'               => (int) $appointment->getParent()?->id,
+			'start'                   => (int) $appointment->start,
+			'end'                     => (int) $appointment->end,
+			'is_confirmed'            => (bool) $appointment->isConfirmed,
+			'confirmation_expiration' => (int) $appointment->confirmationExpiration,
+		),
+		FlzEstAppointment::get_all_by()
+	);
+	usort( $current_appointments, static fn( array $left, array $right ): int => $left['id'] <=> $right['id'] );
 
-	return hash( 'sha256', serialize( array( $teacher_rows, $current_ids ) ) );
+	return hash( 'sha256', serialize( array( $teacher_rows, $current_ids, $current_appointments ) ) );
 }
 
 function flzest_teacher_csv_proof_key(): string {

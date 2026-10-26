@@ -18,10 +18,40 @@ $flzest_teacher_sort_link = static function ( string $label, string $sort ) use 
 	);
 };
 
-$flzest_teacher_row = static function ( FlzEstTeacher $teacher, int $row_index ) use ( $flzest_ui, $flzest_gender_options ): string {
+$flzest_teacher_csv_statuses = array();
+if ( ! empty( $teacher_csv_notice['removable_missing_teacher_ids'] ) && is_array( $teacher_csv_notice['removable_missing_teacher_ids'] ) ) {
+	foreach ( $teacher_csv_notice['removable_missing_teacher_ids'] as $teacher_id ) {
+		$flzest_teacher_csv_statuses[ (int) $teacher_id ] = array(
+			'class' => 'flzest-teacher-csv-removable',
+			'icon'  => 'dashicons-trash',
+			'label' => 'Löschkandidat aus letzter CSV-Prüfung',
+		);
+	}
+}
+if ( ! empty( $teacher_csv_notice['protected_missing_teacher_ids'] ) && is_array( $teacher_csv_notice['protected_missing_teacher_ids'] ) ) {
+	foreach ( $teacher_csv_notice['protected_missing_teacher_ids'] as $teacher_id ) {
+		$flzest_teacher_csv_statuses[ (int) $teacher_id ] = array(
+			'class' => 'flzest-teacher-csv-protected',
+			'icon'  => 'dashicons-lock',
+			'label' => 'Geschützt wegen eines künftigen oder höchstens 30 Tage zurückliegenden Termins',
+		);
+	}
+}
+
+$flzest_teacher_row = static function ( FlzEstTeacher $teacher, int $row_index ) use ( $flzest_ui, $flzest_gender_options, $flzest_teacher_csv_statuses ): string {
 	$is_new = empty( $teacher->id );
 	$row_id = $is_new ? 'flzest-teacher-new' : 'flzest-teacher-' . (int) $teacher->id;
 	$delete_action = '';
+	$csv_status = ! $is_new && isset( $flzest_teacher_csv_statuses[ (int) $teacher->id ] ) ? $flzest_teacher_csv_statuses[ (int) $teacher->id ] : null;
+	$name_view = esc_html( (string) ( $teacher->name ?? '' ) );
+	if ( is_array( $csv_status ) ) {
+		$name_view .= sprintf(
+			' <span class="flzest-teacher-csv-status %1$s"><span class="dashicons %2$s" aria-hidden="true"></span><span>%3$s</span></span>',
+			esc_attr( (string) $csv_status['class'] ),
+			esc_attr( (string) $csv_status['icon'] ),
+			esc_html( (string) $csv_status['label'] )
+		);
+	}
 
 	if ( ! $is_new ) {
 		$delete_action .= $flzest_ui->action_form_button(
@@ -58,7 +88,7 @@ $flzest_teacher_row = static function ( FlzEstTeacher $teacher, int $row_index )
 	return $flzest_ui->editable_row(
 		array(
 			'id'         => $row_id,
-			'class'      => 0 === $row_index % 2 ? 'alternate' : '',
+			'class'      => trim( ( 0 === $row_index % 2 ? 'alternate ' : '' ) . ( is_array( $csv_status ) ? (string) $csv_status['class'] : '' ) ),
 			'new'        => $is_new,
 			'row_hidden' => $is_new,
 			'form'       => array(
@@ -78,7 +108,7 @@ $flzest_teacher_row = static function ( FlzEstTeacher $teacher, int $row_index )
 					),
 				),
 				array(
-					'view'  => $teacher->name ?? '',
+					'view_html' => $name_view,
 					'field' => array(
 						'type'     => 'text',
 						'name'     => 'name',
@@ -125,8 +155,20 @@ $flzest_teacher_row = static function ( FlzEstTeacher $teacher, int $row_index )
 		<?php echo $flzest_ui->notice( $teacher_csv_notice['message'], $teacher_csv_notice['type'] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Renderer escaped die Notice. ?>
 	<?php endif; ?>
 	<?php if ( $teacher_csv_stage_ready ) : ?>
-		<?php echo $flzest_ui->form_start( array( 'method' => 'post', 'nonce' => 'flzest_admin_action' ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
-			<?php echo $flzest_ui->button( array( 'label' => 'Geprüfte Lehrkräfte-CSV jetzt importieren', 'attrs' => array( 'name' => 'confirm_teacher_csv_import', 'value' => '1', 'type' => 'submit' ) ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
+		<?php echo $flzest_ui->form_start( array( 'method' => 'post', 'nonce' => 'flzest_admin_action', 'hidden' => array( 'confirm_teacher_csv_import' => '1' ) ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
+			<?php if ( ! empty( $teacher_csv_notice['deletable_missing'] ) ) : ?>
+				<?php echo $flzest_ui->field( array( 'type' => 'checkbox', 'name' => 'delete_missing_teachers', 'label' => sprintf( '%d löschbare, nicht in der CSV enthaltene Lehrkräfte mitsamt ausschließlich mehr als 30 Tage vergangenen Terminen löschen.', (int) $teacher_csv_notice['deletable_missing'] ) ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
+			<?php endif; ?>
+			<?php if ( ! empty( $teacher_csv_notice['protected_missing_teachers'] ) && is_array( $teacher_csv_notice['protected_missing_teachers'] ) ) : ?>
+				<fieldset class="flzest-teacher-csv-protected-deletions">
+					<legend>Geschützte Lehrkräfte einschließlich aller ihrer Termine endgültig löschen</legend>
+					<p>Wählen Sie jede Lehrkraft einzeln aus. Nicht ausgewählte geschützte Lehrkräfte bleiben erhalten.</p>
+					<?php foreach ( $teacher_csv_notice['protected_missing_teachers'] as $protected_teacher ) : ?>
+						<?php echo $flzest_ui->field( array( 'type' => 'checkbox', 'name' => 'delete_protected_missing_teachers[]', 'checkbox_value' => (string) $protected_teacher['id'], 'label' => (string) $protected_teacher['label'] . ': einschließlich aller Termine endgültig löschen.' ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
+					<?php endforeach; ?>
+				</fieldset>
+			<?php endif; ?>
+			<?php echo $flzest_ui->button_save( array( 'label' => 'Geprüfte Lehrkräfte-CSV jetzt importieren', 'hide_label' => false, 'confirm' => 'Die geprüfte Lehrkräfte-CSV jetzt importieren? Gewählte Löschoptionen entfernen Lehrkräfte und gegebenenfalls ihre Termine endgültig.' ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
 		<?php echo $flzest_ui->form_end(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
 	<?php endif; ?>
 	<p>
@@ -168,7 +210,7 @@ $flzest_teacher_row = static function ( FlzEstTeacher $teacher, int $row_index )
 	<?php endif; ?>
 	<?php
 	// phpcs:disable WordPress.Security.EscapeOutput.OutputNotEscaped -- Renderer escaped die CSV-Komponente inklusive URL, Labels und Formularfeldern.
-	echo $flzest_ui->csv_panel( array( 'title' => 'Lehrkräfte CSV', 'description' => 'Excel-freundlicher Export ohne technische Metadatenspalten. Die Datei wird standardmäßig nur geprüft; zum Import die Prüfoption erst nach einem erfolgreichen Dry-Run deaktivieren. Der Prüfnachweis gilt für dieselbe unveränderte Datei 15 Minuten.', 'format' => 'gender; last_name; first_name; email', 'format_description' => '<strong>gender</strong>: Anrede/Geschlecht. <strong>last_name</strong>: Nachname. <strong>first_name</strong>: Vorname. <strong>email</strong>: eindeutige dienstliche E-Mail-Adresse.', 'export' => array( 'href' => $teacher_csv_export_url, 'label' => 'Lehrkräfte-CSV herunterladen' ), 'upload' => array( 'nonce' => 'flzest_admin_action', 'file_name' => 'teacher-csv', 'file_id' => 'teacher-csv', 'fields' => array( array( 'type' => 'checkbox', 'name' => 'csv_dry_run', 'label' => 'Datei nur prüfen – es werden noch keine Lehrkräfte geändert.', 'checked' => true ) ), 'button_label' => 'Lehrkräfte-CSV prüfen oder importieren', 'button' => array( 'hide_label' => false, 'confirm' => 'CSV jetzt verarbeiten? Mit aktivierter Prüfoption werden keine Daten geändert; ohne sie ist nur eine zuvor erfolgreich geprüfte, unveränderte Datei importierbar.' ), 'submit_name' => 'submit_csv' ) ) );
+	echo $flzest_ui->csv_panel( array( 'title' => 'Lehrkräfte CSV', 'description' => 'Excel-freundlicher Export ohne technische Metadatenspalten. Jede hochgeladene Datei wird zuerst geprüft. Nach erfolgreicher Prüfung werden Datensätze anhand ihrer dienstlichen E-Mail-Adresse aktualisiert oder neu angelegt; nicht aufgeführte Lehrkräfte bleiben erhalten. Der Prüfnachweis gilt für dieselbe unveränderte Datei 15 Minuten.', 'format' => 'gender; last_name; first_name; email', 'format_description' => '<strong>gender</strong>: Anrede/Geschlecht. <strong>last_name</strong>: Nachname. <strong>first_name</strong>: Vorname. <strong>email</strong>: eindeutige dienstliche E-Mail-Adresse.', 'export' => array( 'href' => $teacher_csv_export_url, 'label' => 'Lehrkräfte-CSV herunterladen' ), 'upload' => array( 'nonce' => 'flzest_admin_action', 'file_name' => 'teacher-csv', 'file_id' => 'teacher-csv', 'button_label' => 'Lehrkräfte-CSV prüfen', 'button' => array( 'hide_label' => false, 'confirm' => 'Lehrkräfte-CSV jetzt prüfen? Es werden dabei noch keine Daten geändert.' ), 'submit_name' => 'submit_csv' ) ) );
 	// phpcs:enable WordPress.Security.EscapeOutput.OutputNotEscaped
 	?>
 </div>

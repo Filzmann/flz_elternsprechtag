@@ -125,8 +125,8 @@ $flzest_appointment_row = static function ( FlzEstAppointment $appointment, int 
 		<?php echo $flzest_ui->notice( $appointment_csv_notice['message'], $appointment_csv_notice['type'] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Renderer escaped die Notice. ?>
 	<?php endif; ?>
 	<?php if ( $appointment_csv_stage_ready ) : ?>
-		<?php echo $flzest_ui->form_start( array( 'method' => 'post', 'nonce' => 'flzest_admin_action' ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Renderer escaped das Formular. ?>
-			<?php echo $flzest_ui->button( array( 'label' => 'Geprüfte Termin-CSV jetzt importieren', 'attrs' => array( 'name' => 'confirm_csv_import', 'value' => '1', 'type' => 'submit' ), 'confirm' => 'Die geprüfte Termin-CSV jetzt importieren? Die Daten werden danach aus der Zwischenablage gelöscht.' ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Renderer escaped die Komponente. ?>
+		<?php echo $flzest_ui->form_start( array( 'method' => 'post', 'nonce' => 'flzest_admin_action', 'hidden' => array( 'confirm_csv_import' => '1' ) ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Renderer escaped das Formular. ?>
+			<?php echo $flzest_ui->button_save( array( 'label' => 'Geprüfte Termin-CSV jetzt importieren', 'hide_label' => false, 'confirm' => 'Die geprüfte Termin-CSV jetzt importieren? Die Daten werden danach aus der Zwischenablage gelöscht.' ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Renderer escaped die Komponente. ?>
 		<?php echo $flzest_ui->form_end(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Renderer escaped das Formular. ?>
 	<?php endif; ?>
 	<div>
