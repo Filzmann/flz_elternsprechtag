@@ -25,19 +25,27 @@ function flzest_teachers_page_content(): void
 	handleTeacherDeletion();
 
 	$teachers = FlzEstTeacher::get_all_by( order_by: 'name' );
-	$teacher_search = flz_ui_admin_filter_text( 'teacher_search' );
+	$teacher_search = flz_ui_admin_filter_text( 'table_search' );
 	$teacher_orderby = flz_ui_admin_orderby( array( 'gender', 'name', 'firstName', 'email' ), 'name' );
 	$teacher_order = flz_ui_admin_order();
 	$teacher_base_args = array( 'page' => 'flzest_teachers' );
 	if ( '' !== $teacher_search ) {
-		$teacher_base_args['teacher_search'] = $teacher_search;
+		$teacher_base_args['table_search'] = $teacher_search;
 	}
 
 	if ( '' !== $teacher_search ) {
 		$teachers = array_values( array_filter(
 			$teachers,
 			static function ( FlzEstTeacher $teacher ) use ( $teacher_search ): bool {
-				return false !== stripos( (string) $teacher->name, $teacher_search );
+				return flzest_admin_table_matches_search(
+					$teacher_search,
+					array(
+						$teacher->get_gender_as_anrede(),
+						(string) $teacher->name,
+						(string) $teacher->firstName,
+						(string) $teacher->email,
+					)
+				);
 			}
 		) );
 	}

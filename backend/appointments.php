@@ -296,32 +296,41 @@ function flzest_appointments_page_content(): void {
 	processAppointmentForm();
 	// show appointment table
 	$appointments = flzEstAppointment::get_all_by();
-	$appointment_teacher_filter = flz_ui_admin_filter_text( 'teacher_filter' );
+	$appointment_table_search = flz_ui_admin_filter_text( 'table_search' );
 	$appointment_booking_filter = isset( $_GET['booking_filter'] ) ? sanitize_key( wp_unslash( $_GET['booking_filter'] ) ) : 'all';
 	if ( ! in_array( $appointment_booking_filter, array( 'all', 'booked', 'free' ), true ) ) {
 		$appointment_booking_filter = 'all';
 	}
+	$appointment_confirmation_filter = flzest_admin_table_confirmation_filter(
+		isset( $_GET['confirmation_filter'] ) ? sanitize_key( wp_unslash( $_GET['confirmation_filter'] ) ) : 'all'
+	);
 	$appointment_orderby = flz_ui_admin_orderby( array( 'start', 'end', 'teacher', 'parent', 'status' ), 'teacher' );
 	$appointment_order   = flz_ui_admin_order();
 	$appointment_base_args = array(
 		'page' => 'flzest_appointments',
 	);
-	if ( '' !== $appointment_teacher_filter ) {
-		$appointment_base_args['teacher_filter'] = $appointment_teacher_filter;
+	if ( '' !== $appointment_table_search ) {
+		$appointment_base_args['table_search'] = $appointment_table_search;
 	}
 	if ( 'all' !== $appointment_booking_filter ) {
 		$appointment_base_args['booking_filter'] = $appointment_booking_filter;
 	}
+	if ( 'all' !== $appointment_confirmation_filter ) {
+		$appointment_base_args['confirmation_filter'] = $appointment_confirmation_filter;
+	}
 
 	$appointments = array_values( array_filter(
 		$appointments,
-		static function ( $appointment ) use ( $appointment_teacher_filter, $appointment_booking_filter ): bool {
+		static function ( $appointment ) use ( $appointment_table_search, $appointment_booking_filter, $appointment_confirmation_filter ): bool {
 			$teacher_label = $appointment->teacher
-				? (string) $appointment->teacher->name
+				? trim( (string) $appointment->teacher->name . ', ' . (string) $appointment->teacher->firstName )
 				: '';
+			$parent_label = $appointment->parent
+				? trim( (string) $appointment->parent->name . ', ' . (string) $appointment->parent->firstName . ' (' . (string) $appointment->parent->studentName . ' – ' . (string) $appointment->parent->studentClass . ')' )
+				: 'Freier Slot';
 			$is_booked = ! empty( $appointment->parent );
 
-			if ( '' !== $appointment_teacher_filter && false === stripos( $teacher_label, $appointment_teacher_filter ) ) {
+			if ( ! flzest_admin_table_matches_search( $appointment_table_search, array( wp_date( 'H:i', $appointment->start ), wp_date( 'H:i', $appointment->end ), $teacher_label, $parent_label ) ) ) {
 				return false;
 			}
 
@@ -330,6 +339,10 @@ function flzest_appointments_page_content(): void {
 			}
 
 			if ( 'free' === $appointment_booking_filter && $is_booked ) {
+				return false;
+			}
+
+			if ( ! flzest_admin_table_matches_confirmation_filter( $appointment_confirmation_filter, $is_booked, (bool) $appointment->isConfirmed ) ) {
 				return false;
 			}
 

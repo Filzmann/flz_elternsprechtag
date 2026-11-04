@@ -164,8 +164,11 @@ $flzest_appointment_row = static function ( FlzEstAppointment $appointment, int 
 									<?php if ( 'all' !== $appointment_booking_filter ) : ?>
 										<input type="hidden" name="booking_filter" value="<?php echo esc_attr( $appointment_booking_filter ); ?>" />
 									<?php endif; ?>
-									<?php echo $flzest_ui->input( 'text', array( 'name' => 'teacher_filter', 'id' => 'flzest-teacher-filter', 'label' => 'Lehrkraft-Nachname filtern', 'value' => $appointment_teacher_filter, 'placeholder' => 'Nachname' ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Renderer escaped die Komponente. ?>
-									<?php echo $flzest_ui->button_filter( array( 'label' => 'Lehrkraftfilter anwenden' ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Renderer escaped die Komponente. ?>
+									<?php if ( 'all' !== $appointment_confirmation_filter ) : ?>
+										<input type="hidden" name="confirmation_filter" value="<?php echo esc_attr( $appointment_confirmation_filter ); ?>" />
+									<?php endif; ?>
+									<?php echo $flzest_ui->input( 'text', array( 'name' => 'table_search', 'id' => 'flzest-table-search', 'label' => 'Termintabelle filtern', 'value' => $appointment_table_search, 'placeholder' => 'Alle Spalten durchsuchen' ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Renderer escaped die Komponente. ?>
+									<?php echo $flzest_ui->button_filter( array( 'label' => 'Tabelle filtern' ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Renderer escaped die Komponente. ?>
 								</form>
 							</div>
 						</th>
@@ -176,11 +179,12 @@ $flzest_appointment_row = static function ( FlzEstAppointment $appointment, int 
 									<input type="hidden" name="page" value="flzest_appointments" />
 									<input type="hidden" name="orderby" value="<?php echo esc_attr( $appointment_orderby ); ?>" />
 									<input type="hidden" name="order" value="<?php echo esc_attr( $appointment_order ); ?>" />
-									<?php if ( '' !== $appointment_teacher_filter ) : ?>
-										<input type="hidden" name="teacher_filter" value="<?php echo esc_attr( $appointment_teacher_filter ); ?>" />
+									<?php if ( '' !== $appointment_table_search ) : ?>
+										<input type="hidden" name="table_search" value="<?php echo esc_attr( $appointment_table_search ); ?>" />
 									<?php endif; ?>
 									<?php echo $flzest_ui->field( array( 'type' => 'select', 'name' => 'booking_filter', 'label' => 'Belegung filtern', 'value' => $appointment_booking_filter, 'options' => array( 'all' => 'alle', 'booked' => 'belegt', 'free' => 'frei' ) ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Renderer escaped die Komponente. ?>
-									<?php echo $flzest_ui->button_filter( array( 'label' => 'Belegung filtern' ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Renderer escaped die Komponente. ?>
+									<?php echo $flzest_ui->field( array( 'type' => 'select', 'name' => 'confirmation_filter', 'label' => 'Bestätigung filtern', 'value' => $appointment_confirmation_filter, 'options' => array( 'all' => 'alle', 'confirmed' => 'bestätigt', 'unconfirmed' => 'nicht bestätigt' ) ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Renderer escaped die Komponente. ?>
+									<?php echo $flzest_ui->button_filter( array( 'label' => 'Terminstatus filtern' ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Renderer escaped die Komponente. ?>
 								</form>
 							</div>
 						</th>
@@ -193,7 +197,7 @@ $flzest_appointment_row = static function ( FlzEstAppointment $appointment, int 
 					<?php endforeach; ?>
 				</tbody>
 			</table>
-			<?php if ( '' !== $appointment_teacher_filter || 'all' !== $appointment_booking_filter ) : ?>
+			<?php if ( '' !== $appointment_table_search || 'all' !== $appointment_booking_filter || 'all' !== $appointment_confirmation_filter ) : ?>
 				<p>
 					<?php echo $flzest_ui->button( array( 'href' => admin_url( 'admin.php?page=flzest_appointments' ), 'label' => 'Filter zurücksetzen', 'variant' => 'secondary' ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Renderer escaped die Komponente. ?>
 				</p>

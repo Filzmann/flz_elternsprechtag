@@ -186,8 +186,8 @@ $flzest_teacher_row = static function ( FlzEstTeacher $teacher, int $row_index )
 							<input type="hidden" name="page" value="flzest_teachers" />
 							<input type="hidden" name="orderby" value="<?php echo esc_attr( $teacher_orderby ); ?>" />
 							<input type="hidden" name="order" value="<?php echo esc_attr( $teacher_order ); ?>" />
-							<?php echo $flzest_ui->input( 'text', array( 'name' => 'teacher_search', 'label' => 'Lehrkräfte nach Nachname filtern', 'value' => $teacher_search, 'placeholder' => 'Nachname' ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Renderer escaped die Komponente. ?>
-							<?php echo $flzest_ui->button_filter( array( 'label' => 'Lehrkräfte filtern' ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Renderer escaped die Komponente. ?>
+							<?php echo $flzest_ui->input( 'text', array( 'name' => 'table_search', 'label' => 'Lehrkräftetabelle filtern', 'value' => $teacher_search, 'placeholder' => 'Alle Spalten durchsuchen' ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Renderer escaped die Komponente. ?>
+							<?php echo $flzest_ui->button_filter( array( 'label' => 'Tabelle filtern' ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Renderer escaped die Komponente. ?>
 						</form>
 					</div>
 				</th>
