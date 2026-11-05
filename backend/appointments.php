@@ -58,6 +58,110 @@ function processAppointmentForm(): void
 	);
 }
 
+/**
+ * Bestätigt eine telefonisch oder anderweitig bestätigte Buchung im Backend.
+ */
+function flzest_confirm_appointment_manually(): void
+{
+	if ( ! isset( $_POST['appointment_confirm'] ) ) {
+		return;
+	}
+
+	$confirmation_data = map_deep( wp_unslash( $_POST['appointment_confirm'] ), 'sanitize_text_field' );
+	$appointment_id = is_array( $confirmation_data ) && isset( $confirmation_data['id'] )
+		? absint( $confirmation_data['id'] )
+		: 0;
+	if ( 0 === $appointment_id ) {
+		throw new UnexpectedValueException( 'Der zu bestätigende Termin wurde nicht gefunden.' );
+	}
+
+	flz_wpdb_objects\FlzWpdbTransaction::run(
+		static function () use ( $appointment_id ): void {
+			$appointment = FlzEstAppointment::get_by_id_for_update( $appointment_id );
+			if ( ! $appointment instanceof FlzEstAppointment ) {
+				throw new UnexpectedValueException( 'Der zu bestätigende Termin wurde nicht gefunden.' );
+			}
+			$appointment->confirm_manually();
+		},
+		'Manuelles Bestätigen einer Elternsprechtagsbuchung'
+	);
+}
+
+/**
+ * Verarbeitet eine bestätigungspflichtige Sammelaktion für markierte, unbestätigte Buchungen.
+ *
+ * @return array{type:string,message:string}|null
+ */
+function flzest_process_bulk_unconfirmed_appointments(): ?array
+{
+	if ( ! isset( $_POST['appointment_bulk_action'] ) ) {
+		return null;
+	}
+
+	$action = sanitize_key( wp_unslash( $_POST['appointment_bulk_action'] ) );
+	if ( ! in_array( $action, array( 'confirm', 'delete' ), true ) ) {
+		throw new UnexpectedValueException( 'Die Sammelaktion für Buchungen ist ungültig.' );
+	}
+	$posted_ids = isset( $_POST['appointment_bulk_ids'] )
+		? map_deep( wp_unslash( $_POST['appointment_bulk_ids'] ), 'sanitize_text_field' )
+		: array();
+	$appointment_ids = is_array( $posted_ids )
+		? array_values( array_unique( array_filter( array_map( 'absint', $posted_ids ) ) ) )
+		: array();
+	if ( empty( $appointment_ids ) ) {
+		return array(
+			'type'    => 'error',
+			'message' => 'Bitte markieren Sie mindestens eine unbestätigte Buchung.',
+		);
+	}
+
+	sort( $appointment_ids, SORT_NUMERIC );
+	$changed = 0;
+	$parents = array();
+	flz_wpdb_objects\FlzWpdbTransaction::run(
+		static function () use ( $action, $appointment_ids, &$changed, &$parents ): void {
+			foreach ( $appointment_ids as $appointment_id ) {
+				$appointment = FlzEstAppointment::get_by_id_for_update( $appointment_id );
+				if ( ! $appointment instanceof FlzEstAppointment ) {
+					continue;
+				}
+				if ( 'confirm' === $action ) {
+					$changed += $appointment->confirm_manually() ? 1 : 0;
+					continue;
+				}
+
+				$parent = $appointment->delete_unconfirmed_booking();
+				if ( ! $parent instanceof FlzEstParent ) {
+					continue;
+				}
+				$parents[ (int) $parent->id ] = $parent;
+				++$changed;
+			}
+			foreach ( $parents as $parent ) {
+				if ( null === FlzEstAppointment::get_by_fields( array( 'parent_id' => (int) $parent->id ) ) ) {
+					$parent->delete();
+				}
+			}
+		},
+		'Sammelaktion für unbestätigte Elternsprechtagsbuchungen'
+	);
+
+	if ( 0 === $changed ) {
+		return array(
+			'type'    => 'error',
+			'message' => 'Keine der markierten Buchungen war noch unbestätigt und belegt.',
+		);
+	}
+
+	return array(
+		'type'    => 'success',
+		'message' => sprintf(
+			'confirm' === $action ? '%d markierte Buchung(en) wurden bestätigt.' : '%d markierte unbestätigte Buchung(en) wurden gelöscht und ihre Termine freigegeben.',
+			$changed
+		),
+	);
+}
+
 function countFilledFieldsInArray($array): int {
 	$count=0;
 	foreach ( $array as $value ) {
@@ -165,6 +269,7 @@ function flzest_apply_appointment_csv_import_plan( array $plan ): void {
 		$appointment->isConfirmed = $item['confirmed'];
 		$appointment->confirmationToken = null;
 		$appointment->confirmationExpiration = 0;
+			$appointment->confirmationWarningSentAt = 0;
 		$appointment->save();
 	}
 	foreach ( $old_parents as $old_parent ) {
@@ -291,6 +396,8 @@ function flzest_appointments_page_content(): void {
 		empty_appointment( $appointment_id );
 
 	}
+	flzest_confirm_appointment_manually();
+	$appointment_bulk_notice = flzest_process_bulk_unconfirmed_appointments();
 	$appointment_csv_notice = processAppointmentsCsvFile();
 	$appointment_csv_stage_ready = FlzCsvImportStage::exists( 'flzest:appointments', get_current_user_id() );
 	processAppointmentForm();
@@ -431,6 +538,7 @@ function empty_appointment( int $appointment_id ) {
 	$appointment->isConfirmed = false;
 	$appointment->confirmationToken=null;
 	$appointment->confirmationExpiration=0;
+	$appointment->confirmationWarningSentAt=0;
 	$appointment->save();
 	echo "<script>alert('Termin erfolgreich geleert!');</script>";
 }

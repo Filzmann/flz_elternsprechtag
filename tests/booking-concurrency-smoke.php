@@ -185,5 +185,68 @@ namespace {
 		throw new RuntimeException( 'Der Terminimport übernimmt oder erhält ein Bestätigungstoken.' );
 	}
 
+	$telephone_confirmation = new FlzEstAppointment(
+		array(
+			'id'                     => 12,
+			'start'                  => 600,
+			'end'                    => 700,
+			'teacher'                => $teacher,
+			'parent'                 => $parent,
+			'confirmationToken'      => 'telephone-confirmation-token',
+			'confirmationExpiration' => 1200,
+		)
+	);
+	if ( ! $telephone_confirmation->confirm_manually() ) {
+		throw new RuntimeException( 'Eine unbestätigte Buchung muss manuell bestätigt werden können.' );
+	}
+	if ( ! $telephone_confirmation->isConfirmed || null !== $telephone_confirmation->confirmationToken || 0 !== $telephone_confirmation->confirmationExpiration || 1 !== $telephone_confirmation->save_calls ) {
+		throw new RuntimeException( 'Die manuelle Bestätigung muss den Status speichern und den Bestätigungstoken ungültig machen.' );
+	}
+
+	$free_appointment = new FlzEstAppointment(
+		array(
+			'id'      => 13,
+			'start'   => 800,
+			'end'     => 900,
+			'teacher' => $teacher,
+		)
+	);
+	if ( $free_appointment->confirm_manually() || 0 !== $free_appointment->save_calls || $free_appointment->isConfirmed ) {
+		throw new RuntimeException( 'Ein manipulierter Bestätigungsrequest darf keinen freien Termin verändern.' );
+	}
+
+	$bulk_parent = new FlzEstParent( array( 'id' => 14 ) );
+	$bulk_deletion = new FlzEstAppointment(
+		array(
+			'id'                     => 14,
+			'start'                  => 1000,
+			'end'                    => 1100,
+			'teacher'                => $teacher,
+			'parent'                 => $bulk_parent,
+			'confirmationToken'      => 'bulk-deletion-token',
+			'confirmationExpiration' => 1500,
+		)
+	);
+	if ( $bulk_parent !== $bulk_deletion->delete_unconfirmed_booking() ) {
+		throw new RuntimeException( 'Eine markierte unbestätigte Buchung muss für die Sammellöschung freigegeben werden.' );
+	}
+	if ( null !== $bulk_deletion->parent || $bulk_deletion->isConfirmed || null !== $bulk_deletion->confirmationToken || 0 !== $bulk_deletion->confirmationExpiration || 1 !== $bulk_deletion->save_calls ) {
+		throw new RuntimeException( 'Das Löschen einer unbestätigten Buchung muss nur deren Termin freigeben und den Token ungültig machen.' );
+	}
+
+	$confirmed_appointment = new FlzEstAppointment(
+		array(
+			'id'          => 15,
+			'start'       => 1200,
+			'end'         => 1300,
+			'teacher'     => $teacher,
+			'parent'      => new FlzEstParent( array( 'id' => 15 ) ),
+			'isConfirmed' => true,
+		)
+	);
+	if ( null !== $confirmed_appointment->delete_unconfirmed_booking() || 0 !== $confirmed_appointment->save_calls || ! $confirmed_appointment->isConfirmed ) {
+		throw new RuntimeException( 'Ein manipulierter Sammellöschrequest darf keine bestätigte Buchung verändern.' );
+	}
+
 	echo "OK: flz_elternsprechtag booking concurrency smoke test\n";
 }

@@ -15,7 +15,7 @@ namespace flz_est;
 defined( 'ABSPATH' ) || exit;
 
 const FLZ_EST_VERSION = '1.2.0-rc.15';
-const FLZ_EST_DB_VERSION = '2.4.0';
+const FLZ_EST_DB_VERSION = '2.5.0';
 const FLZ_EST_MIN_WPDB_OBJECTS_VERSION = '2.1.0';
 const FLZ_EST_MIN_UI_COMPONENTS_VERSION = '0.2.1-rc.3';
 
@@ -49,6 +49,7 @@ function flz_est_bootstrap(): bool {
 	require_once plugin_dir_path( __FILE__ ) . 'includes/admin-tables.php';
 	require_once plugin_dir_path( __FILE__ ) . 'includes/csv-contract.php';
 	require_once plugin_dir_path( __FILE__ ) . 'includes/mail-templates.php';
+	require_once plugin_dir_path( __FILE__ ) . 'includes/unconfirmed-booking-release.php';
 	require_once plugin_dir_path( __FILE__ ) . 'activate-deactivate.php';
 	require_once plugin_dir_path( __FILE__ ) . 'includes/class-flz-est-schema-migrator.php';
 	require_once plugin_dir_path( __FILE__ ) . 'includes/privacy.php';

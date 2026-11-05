@@ -70,5 +70,7 @@ foreach (
 
 $appointment_template = file_get_contents( dirname( __DIR__ ) . '/templates/appointments.php' );
 $assert( false !== strpos( $appointment_template, "'name' => 'confirmation_filter'" ), 'Die Auswahl für den Bestätigungsstatus fehlt.' );
+$assert( false !== strpos( $appointment_template, "'label'  => 'Buchung bestätigen'" ) && false !== strpos( $appointment_template, "'label'  => 'Termin leeren'" ), 'Die Textbeschriftungen für die Terminaktionen fehlen.' );
+$assert( 2 === preg_match_all( "/'icon'\\s*=>\\s*'',\\s*'hide_label'\\s*=>\\s*false/", $appointment_template ), 'Terminaktionen müssen sichtbare Textbuttons ohne Icons sein.' );
 
 echo "OK: flz_elternsprechtag admin tables contract smoke test\n";

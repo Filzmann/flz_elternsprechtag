@@ -48,15 +48,28 @@ $field_contracts = array(
 	'ParentsDayEnd'   => array( 'type' => 'time' ),
 	'TestMode'        => array( 'type' => 'checkbox', 'checkbox_value' => '1', 'checked' => true ),
 	'MailFrom'        => array( 'type' => 'email', 'autocomplete' => 'email' ),
+	'UnconfirmedBookingReleaseEnabled' => array( 'type' => 'checkbox', 'checkbox_value' => '1', 'checked' => true ),
+	'UnconfirmedBookingReleaseHours' => array( 'type' => 'number', 'min' => 1, 'max' => 720 ),
+	'UnconfirmedBookingWarningHours' => array( 'type' => 'number', 'min' => 0, 'max' => 719 ),
 );
 foreach ( $field_contracts as $name => $expected ) {
-	$field = flzest_setting_input_args( $name, 'TestMode' === $name ? '1' : '17.11.26' );
+	$field = flzest_setting_input_args( $name, in_array( $name, array( 'TestMode', 'UnconfirmedBookingReleaseEnabled' ), true ) ? '1' : '17.11.26' );
 	foreach ( $expected as $key => $value ) {
 		flzest_settings_date_assert( isset( $field[ $key ] ) && $field[ $key ] === $value );
 	}
 }
 flzest_settings_date_assert( 'text' === flzest_setting_input_args( 'UnknownSetting', '' )['type'] );
 flzest_settings_date_assert( false !== strpos( $template, '->hidden( \'settings[\' . $setting->id . \']\', \'0\'' ) );
+flzest_settings_date_assert( '48' === flzest_validate_setting_value( 'UnconfirmedBookingReleaseHours', '48' ) );
+flzest_settings_date_assert( '0' === flzest_validate_setting_value( 'UnconfirmedBookingWarningHours', '0' ) );
+
+$release_hours_rejected = false;
+try {
+	flzest_validate_setting_value( 'UnconfirmedBookingReleaseHours', '0' );
+} catch ( UnexpectedValueException $exception ) {
+	$release_hours_rejected = true;
+}
+flzest_settings_date_assert( $release_hours_rejected );
 
 foreach ( array( 'teachers.php', 'appointments.php' ) as $csv_template_name ) {
 	$csv_template = file_get_contents( __DIR__ . '/../templates/' . $csv_template_name );
@@ -72,5 +85,6 @@ foreach ( array( 'teachers.php', 'appointments.php' ) as $csv_template_name ) {
 $appointments_template = file_get_contents( __DIR__ . '/../templates/appointments.php' );
 flzest_settings_date_assert( false !== strpos( $appointments_template, 'flz-ui-admin-table--compact' ) );
 flzest_settings_date_assert( false !== strpos( $appointments_template, "'hide_label' => true" ) );
+flzest_settings_date_assert( false !== strpos( $template, 'UnconfirmedBookingReleaseEnabled' ) );
 
 echo "OK: settings date input and storage contract\n"; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- CLI-Testausgabe.

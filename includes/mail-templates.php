@@ -12,6 +12,10 @@ function flzest_mail_template_defaults(): array
 		'MailTeacherBody' => "Hallo {teacher_salutation} {teacher_name},\n\nes gibt eine neue Buchung für den Elternsprechtag am {appointment_date}.\nBeginn: {start_time}\nEnde: {end_time}\n\nElternteil: {parent_salutation} {parent_name}\nSchüler*in: {student_name}\nKlasse: {student_class}",
 		'MailParentSubject' => 'Bitte Termin am {appointment_date} bestätigen',
 		'MailParentBody' => "Hallo {parent_salutation} {parent_name},\n\nSie haben am {appointment_date} einen Termin bei {teacher_salutation} {teacher_name} für {student_name} gebucht.\nBeginn: {start_time}\nEnde: {end_time}\n\nBitte bestätigen Sie den Termin über diesen Link:\n{confirmation_url}\n\nBeste Grüße\n{site_name}",
+		'MailUnconfirmedBookingWarningSubject' => 'Bitte Termin am {appointment_date} bestätigen',
+		'MailUnconfirmedBookingWarningBody' => "Hallo {parent_salutation} {parent_name},\n\nIhr Termin bei {teacher_salutation} {teacher_name} am {appointment_date} um {start_time} wurde noch nicht bestätigt. Bitte verwenden Sie den Bestätigungslink aus Ihrer Buchungsmail, damit der Termin erhalten bleibt.\n\nBeste Grüße\n{site_name}",
+		'MailUnconfirmedBookingReleasedSubject' => 'Ihr unbestätigter Termin wurde freigegeben',
+		'MailUnconfirmedBookingReleasedBody' => "Hallo {parent_salutation} {parent_name},\n\nIhr unbestätigter Termin bei {teacher_salutation} {teacher_name} am {appointment_date} um {start_time} wurde freigegeben. Wenn Sie weiterhin einen Termin benötigen, buchen Sie bitte einen freien Zeitpunkt erneut.\n\nBeste Grüße\n{site_name}",
 	);
 }
 

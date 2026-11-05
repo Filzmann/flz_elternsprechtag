@@ -69,7 +69,8 @@ function flzest_probeunterricht_form( $atts ): false|string {
 
 		if ( empty( $selected->errors() ) ) {
 			$selected->confirmationToken = wp_generate_password( 48, false, false );
-			$selected->confirmationExpiration = time() + 2 * DAY_IN_SECONDS;
+			$selected->confirmationExpiration = time() + flzest_unconfirmed_booking_release_hours() * HOUR_IN_SECONDS;
+			$selected->confirmationWarningSentAt = 0;
 			flzest_persist_booking( $selected );
 
 			try {
@@ -236,6 +237,56 @@ function sendMails( FlzEstAppointment $selected ): void {
 			new RuntimeException( 'wp_mail() meldete einen Fehler für: ' . implode( ', ', $failed ) ),
 			'Senden der Elternsprechtags-E-Mails für Termin-ID ' . (string) $selected->id
 		);
+	}
+}
+
+/** Sends a lifecycle message to the parent without exposing tokens in logs. */
+function flzest_send_unconfirmed_booking_lifecycle_mail( FlzEstAppointment $appointment, string $subject_setting, string $body_setting ): void {
+	if ( ! $appointment->teacher instanceof FlzEstTeacher || ! $appointment->parent instanceof FlzEstParent ) {
+		throw new UnexpectedValueException( 'Für die Benachrichtigung über eine unbestätigte Buchung fehlen Termin- oder Elterndaten.' );
+	}
+	$parent_email = sanitize_email( (string) $appointment->parent->email );
+	if ( ! is_email( $parent_email ) ) {
+		throw new UnexpectedValueException( 'Die Empfängeradresse der Buchungsbenachrichtigung ist ungültig.' );
+	}
+	if ( intval( FlzEstSetting::get_value_by_name( 'TestMode' ) ) ) {
+		$parent_email = 'private-test@example.test';
+	}
+	$from_email = sanitize_email( FlzEstSetting::get_value_by_name( 'MailFrom' ) );
+	if ( ! is_email( $from_email ) ) {
+		throw new UnexpectedValueException( 'Die konfigurierte Absenderadresse ist ungültig.' );
+	}
+	$site_name = sanitize_text_field( wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES ) );
+	$context = array(
+		'teacher_salutation' => esc_html( (string) $appointment->teacher->get_gender_as_anrede() ),
+		'teacher_name'       => esc_html( trim( (string) $appointment->teacher->firstName . ' ' . (string) $appointment->teacher->name ) ),
+		'parent_salutation'  => esc_html( (string) $appointment->parent->get_gender_as_anrede() ),
+		'parent_name'        => esc_html( trim( (string) $appointment->parent->firstName . ' ' . (string) $appointment->parent->name ) ),
+		'student_name'       => esc_html( (string) $appointment->parent->studentName ),
+		'student_class'      => esc_html( (string) $appointment->parent->studentClass ),
+		'appointment_date'   => esc_html( wp_date( 'd.m.y', $appointment->start ) ),
+		'start_time'         => esc_html( wp_date( 'H:i', $appointment->start ) ),
+		'end_time'           => esc_html( wp_date( 'H:i', $appointment->end ) ),
+		'confirmation_url'   => '',
+		'site_name'          => esc_html( $site_name ),
+	);
+	$subject = flzest_render_mail_template( FlzEstSetting::get_value_by_name( $subject_setting ), $context );
+	$message = wpautop( flzest_render_mail_template( FlzEstSetting::get_value_by_name( $body_setting ), $context ) );
+	if ( '' === trim( $subject ) || '' === trim( $message ) ) {
+		throw new UnexpectedValueException( 'Eine Mailvorlage für die Buchungsfreigabe ist leer.' );
+	}
+	$sent = flzest_send_html_mail_with_plaintext_fallback(
+		$parent_email,
+		$subject,
+		$message,
+		array(
+			'From: ' . $site_name . ' <' . $from_email . '>',
+			'MIME-Version: 1.0',
+			'Content-Type: text/html; charset=UTF-8',
+		)
+	);
+	if ( ! $sent ) {
+		throw flzest_operation_error( new RuntimeException( 'wp_mail() meldete einen Fehler.' ), 'Senden einer Buchungsfreigabe-Benachrichtigung' );
 	}
 }
 

@@ -175,6 +175,7 @@ final class FlzEstSchemaMigrator
 				'isConfirmed' => (int) ($row->isConfirmed ?? 0),
 				'confirmationExpiration' => (int) ($row->confirmationExpiration ?? 0),
 				'confirmationToken' => isset($row->confirmationToken) ? (string) $row->confirmationToken : null,
+				'confirmationWarningSentAt' => 0,
 				'teacher_id' => $teacher_id,
 				'parent_id' => $parent_id,
 			);

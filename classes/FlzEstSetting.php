@@ -37,6 +37,9 @@ class FlzEstSetting extends FlzWpdbObject {
 			'BookingConfirmationNotice' => flzest_booking_confirmation_notice_default(),
 			'ActivationConfirmationMessage' => flzest_activation_confirmation_message_default(),
 			'ActivationRedirectTarget' => 'form',
+			'UnconfirmedBookingReleaseEnabled' => '0',
+			'UnconfirmedBookingReleaseHours' => '48',
+			'UnconfirmedBookingWarningHours' => '24',
 		);
 
 		return array_merge( $defaults, flzest_mail_template_defaults() );

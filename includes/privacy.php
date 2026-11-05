@@ -130,6 +130,7 @@ function flzest_erase_parent(FlzEstParent $parent): void
 				$locked->isConfirmed = false;
 				$locked->confirmationExpiration = 0;
 				$locked->confirmationToken = null;
+				$locked->confirmationWarningSentAt = 0;
 				$locked->save();
 			}
 			$parent->delete();

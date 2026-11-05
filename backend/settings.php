@@ -50,6 +50,7 @@ function flzest_settings_page_content(): void
 			if ( ! is_array( $posted_settings ) ) {
 				throw new UnexpectedValueException( 'Die Einstellungen besitzen kein gültiges Array-Format.' );
 			}
+			flzest_validate_unconfirmed_booking_release_settings( $posted_settings );
 			flz_wpdb_objects\FlzWpdbTransaction::run(
 			static function () use ( $posted_settings ): void {
 					foreach ( $posted_settings as $id => $value ) {
@@ -63,6 +64,9 @@ function flzest_settings_page_content(): void
 				},
 				'Speichern der Elternsprechtags-Einstellungen'
 			);
+			flzest_unconfirmed_booking_release_enabled()
+				? flzest_schedule_unconfirmed_booking_release()
+				: flzest_unschedule_unconfirmed_booking_release();
 			$settings_notice = 'Einstellungen gespeichert.';
 	}
 	if (isset($_POST['flzest_privacy_settings'])) {
@@ -121,6 +125,27 @@ function flzest_validate_setting_value(string $name, string $value): string
 		}
 		return $value;
 	}
+	if ( 'UnconfirmedBookingReleaseEnabled' === $name ) {
+		if ( ! in_array( $value, array( '0', '1' ), true ) ) {
+			throw new UnexpectedValueException( 'Die automatische Freigabe muss ein- oder ausgeschaltet sein.' );
+		}
+
+		return $value;
+	}
+	if ( 'UnconfirmedBookingReleaseHours' === $name ) {
+		if ( ! ctype_digit( $value ) || (int) $value < 1 || (int) $value > 720 ) {
+			throw new UnexpectedValueException( 'Der Freigabezeitraum muss zwischen 1 und 720 Stunden liegen.' );
+		}
+
+		return (string) (int) $value;
+	}
+	if ( 'UnconfirmedBookingWarningHours' === $name ) {
+		if ( ! ctype_digit( $value ) || (int) $value < 0 || (int) $value > 719 ) {
+			throw new UnexpectedValueException( 'Der Warnabstand muss zwischen 0 und 719 Stunden liegen.' );
+		}
+
+		return (string) (int) $value;
+	}
 	if ('MailFrom' === $name) {
 		$email = sanitize_email($value);
 		if (!is_email($email)) {
@@ -168,6 +193,30 @@ function flzest_validate_setting_value(string $name, string $value): string
 	}
 
 	return sanitize_text_field($value);
+}
+
+/**
+ * @param array<array-key,mixed> $posted_settings
+ */
+function flzest_validate_unconfirmed_booking_release_settings( array $posted_settings ): void
+{
+	$release_hours = flzest_unconfirmed_booking_release_hours();
+	$warning_hours = flzest_unconfirmed_booking_warning_hours();
+	foreach ( $posted_settings as $id => $value ) {
+		$setting = FlzEstSetting::get_by_id( absint( $id ) );
+		if ( ! $setting instanceof FlzEstSetting || ! is_scalar( $value ) ) {
+			continue;
+		}
+		if ( 'UnconfirmedBookingReleaseHours' === $setting->name ) {
+			$release_hours = (int) flzest_validate_setting_value( $setting->name, (string) $value );
+		}
+		if ( 'UnconfirmedBookingWarningHours' === $setting->name ) {
+			$warning_hours = (int) flzest_validate_setting_value( $setting->name, (string) $value );
+		}
+	}
+	if ( $warning_hours >= $release_hours ) {
+		throw new UnexpectedValueException( 'Die Warnung muss vor dem Freigabezeitpunkt liegen.' );
+	}
 }
 
 /**
@@ -219,6 +268,26 @@ function flzest_setting_input_args(string $name, string $value): array
 				'type'           => 'checkbox',
 				'checkbox_value' => '1',
 				'checked'        => '1' === $value,
+			);
+		case 'UnconfirmedBookingReleaseEnabled':
+			return array(
+				'type'           => 'checkbox',
+				'checkbox_value' => '1',
+				'checked'        => '1' === $value,
+			);
+		case 'UnconfirmedBookingReleaseHours':
+			return array(
+				'type'  => 'number',
+				'value' => $value,
+				'min'   => 1,
+				'max'   => 720,
+			);
+		case 'UnconfirmedBookingWarningHours':
+			return array(
+				'type'  => 'number',
+				'value' => $value,
+				'min'   => 0,
+				'max'   => 719,
 			);
 		case 'MailFrom':
 			return array(
@@ -272,6 +341,13 @@ function flzest_setting_label( string $name ): string
 		'MailTeacherBody'    => 'Text: Mail an Lehrkraft',
 		'MailParentSubject'  => 'Betreff: Mail an Elternteil',
 		'MailParentBody'     => 'Text: Mail an Elternteil',
+		'MailUnconfirmedBookingWarningSubject' => 'Betreff: Warnung vor Terminfreigabe',
+		'MailUnconfirmedBookingWarningBody' => 'Text: Warnung vor Terminfreigabe',
+		'MailUnconfirmedBookingReleasedSubject' => 'Betreff: Terminfreigabe',
+		'MailUnconfirmedBookingReleasedBody' => 'Text: Terminfreigabe',
+		'UnconfirmedBookingReleaseEnabled' => 'Automatische Freigabe unbestätigter Buchungen',
+		'UnconfirmedBookingReleaseHours' => 'Freigabe nach Stunden',
+		'UnconfirmedBookingWarningHours' => 'Warnung vor Freigabe nach Stunden',
 		'BookingConfirmationNotice' => 'Hinweis zur Bestätigungsmail auf der Buchungsseite',
 		'ActivationConfirmationMessage' => 'Text nach erfolgreicher Aktivierung',
 		'ActivationRedirectTarget' => 'Buttonziel nach erfolgreicher Aktivierung',

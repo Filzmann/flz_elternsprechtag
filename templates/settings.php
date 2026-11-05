@@ -7,6 +7,8 @@ foreach ( $settings as $flzest_setting ) {
 $flzest_mail_template_groups = array(
 	'Lehrkraft' => array( 'MailTeacherSubject', 'MailTeacherBody' ),
 	'Elternteil' => array( 'MailParentSubject', 'MailParentBody' ),
+	'Warnung vor Freigabe' => array( 'MailUnconfirmedBookingWarningSubject', 'MailUnconfirmedBookingWarningBody' ),
+	'Freigabe unbestätigter Buchung' => array( 'MailUnconfirmedBookingReleasedSubject', 'MailUnconfirmedBookingReleasedBody' ),
 );
 ?>
 <div class="wrap">
@@ -17,6 +19,7 @@ $flzest_mail_template_groups = array(
     <div class="flz-ui-panel">
         <h2>Grundeinstellungen</h2>
 		<p class="description">Diese Werte steuern den nächsten Elternsprechtag und die Länge der buchbaren Zeitfenster.</p>
+		<p class="description">Die automatische Freigabe unbestätigter Buchungen ist standardmäßig ausgeschaltet. Nach Aktivierung prüft WordPress stündlich, warnt einmalig vor dem eingestellten Ablauf und gibt den Termin danach wieder frei.</p>
 		<?php echo $flzest_ui->form_start( array( 'method' => 'post', 'nonce' => 'flzest_admin_action' ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Renderer escaped das Formular. ?>
 		<div class="flz-ui-card-grid flzest-settings-grid">
             <?php foreach ( $settings as $setting ) : ?>

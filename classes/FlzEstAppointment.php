@@ -22,6 +22,7 @@ class flzEstAppointment extends FlzWpdbObject
 	public bool $isConfirmed=false;
 	public int|null $confirmationExpiration = 0;
 	public string|null $confirmationToken=null   ;
+	public int $confirmationWarningSentAt = 0;
 
 	public function __construct(array $data=[])
 	{
@@ -33,6 +34,7 @@ class flzEstAppointment extends FlzWpdbObject
 		$this->isConfirmed=$data['isConfirmed'] ?? false;
 		$this->confirmationExpiration=$data['confirmationExpiration'] ?? 0;
 		$this->confirmationToken=$data['confirmationToken'] ?? null;
+		$this->confirmationWarningSentAt=(int) ($data['confirmationWarningSentAt'] ?? 0);
 	}
 
 	public function getTeacher(): ?FlzEstTeacher {
@@ -59,6 +61,7 @@ class flzEstAppointment extends FlzWpdbObject
             isConfirmed BOOL NOT NULL,
             confirmationExpiration INT(11) NOT NULL,
             confirmationToken VARCHAR(255) NULL,
+				confirmationWarningSentAt INT(11) NOT NULL DEFAULT 0,
             teacher_id INT(11) NOT NULL,
             parent_id INT(11) NULL,
             PRIMARY KEY (id)
@@ -119,7 +122,8 @@ class flzEstAppointment extends FlzWpdbObject
 			'parent_id' => $this->parent?->id,
 			'isConfirmed' => $this->isConfirmed,
 			'confirmationExpiration' => $this->confirmationExpiration,
-			'confirmationToken' => $this->confirmationToken
+			'confirmationToken' => $this->confirmationToken,
+			'confirmationWarningSentAt' => $this->confirmationWarningSentAt,
 
 		];
 	}
@@ -244,9 +248,62 @@ class flzEstAppointment extends FlzWpdbObject
 		$this->isConfirmed = true;
 		$this->confirmationToken = null;
 		$this->confirmationExpiration = 0;
+		$this->confirmationWarningSentAt = 0;
 		$this->save();
 
 		return true;
+	}
+
+	/**
+	 * Bestätigt eine bestehende, noch unbestätigte Buchung durch die Verwaltung.
+	 *
+	 * @return bool Ob sich der Termin dadurch geändert hat.
+	 */
+	public function confirm_manually(): bool
+	{
+		if ( ! $this->parent instanceof FlzEstParent || $this->isConfirmed ) {
+			return false;
+		}
+
+		$this->isConfirmed = true;
+		$this->confirmationToken = null;
+		$this->confirmationExpiration = 0;
+		$this->confirmationWarningSentAt = 0;
+		$this->save();
+
+		return true;
+	}
+
+	/**
+	 * Gibt eine noch unbestätigte Buchung frei und liefert ihren bisherigen Elterndatensatz.
+	 *
+	 * Der aufrufende Dienst entfernt den Elterndatensatz anschließend nur, wenn keine
+	 * weitere Buchung mehr auf ihn verweist.
+	 *
+	 * @return FlzEstParent|null Der gegebenenfalls nicht mehr referenzierte Elterndatensatz.
+	 */
+	public function delete_unconfirmed_booking(): ?FlzEstParent
+	{
+		if ( ! $this->parent instanceof FlzEstParent || $this->isConfirmed ) {
+			return null;
+		}
+
+		$parent = $this->parent;
+		$this->parent = null;
+		$this->isConfirmed = false;
+		$this->confirmationToken = null;
+		$this->confirmationExpiration = 0;
+		$this->confirmationWarningSentAt = 0;
+		$this->save();
+
+		return $parent;
+	}
+
+	/** Markiert die einmalige Vorwarnung für die automatische Freigabe. */
+	public function mark_confirmation_warning_sent( int $timestamp ): void
+	{
+		$this->confirmationWarningSentAt = max( 1, $timestamp );
+		$this->save();
 	}
 
 	public function can_activate( $token ): bool

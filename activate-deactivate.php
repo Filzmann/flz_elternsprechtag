@@ -31,6 +31,9 @@ function flz_est_elternsprechtag_activate(): void
 		if ((bool) get_option('flzest_retention_enabled', 0)) {
 			flzest_schedule_privacy_cleanup();
 		}
+		if ( flzest_unconfirmed_booking_release_enabled() ) {
+			flzest_schedule_unconfirmed_booking_release();
+		}
 	} catch ( \Throwable $error ) {
 		throw \flzest_operation_error( $error, 'Aktivieren des Elternsprechtags-Plugins' );
 	}
@@ -42,7 +45,8 @@ function flz_est_elternsprechtag_deactivate(): void
 {
 	try {
 		flzest_unschedule_privacy_cleanup();
+		flzest_unschedule_unconfirmed_booking_release();
 	} catch (Throwable $error) {
-		flzest_log_error($error, 'Entfernen des Elternsprechtag-Privacy-Jobs bei Deaktivierung');
+		flzest_log_error($error, 'Entfernen geplanter Elternsprechtag-Jobs bei Deaktivierung');
 	}
 }

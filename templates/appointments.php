@@ -30,12 +30,40 @@ $flzest_appointment_row = static function ( FlzEstAppointment $appointment, int 
 		$parent_summary .= $appointment->isConfirmed ? ' – bestätigt' : ' – nicht bestätigt';
 	}
 	$clear_action = '';
+	$confirmation_action = '';
+	$bulk_selection = '';
+	if ( $parent && ! $appointment->isConfirmed ) {
+		$selection_id = 'flzest-appointment-select-' . (int) $appointment->id;
+		$bulk_selection = '<label class="flzest-appointment-bulk-select" for="' . esc_attr( $selection_id ) . '">'
+			. '<input id="' . esc_attr( $selection_id ) . '" type="checkbox" name="appointment_bulk_ids[]" value="' . esc_attr( (string) $appointment->id ) . '" form="flzest-appointment-bulk-form" /> '
+			. esc_html__( 'Markieren', 'flz-elternsprechtag' )
+			. '</label>';
+		$confirmation_action = $flzest_ui->action_form_button(
+			array(
+				'preset' => 'save',
+				'label'  => 'Buchung bestätigen',
+				'button' => array(
+					'type'       => 'submit',
+					'icon'       => '',
+					'hide_label' => false,
+					'confirm'    => 'Diese Buchung als telefonisch bestätigt markieren?',
+				),
+				'method' => 'post',
+				'nonce'  => 'flzest_admin_action',
+				'hidden' => array( 'appointment_confirm[id]' => $appointment->id ),
+			)
+		);
+	}
 
 	$clear_action .= $flzest_ui->action_form_button(
 		array(
 			'preset' => 'clear',
 			'label'  => 'Termin leeren',
-			'button' => array( 'type' => 'submit' ),
+			'button' => array(
+				'type'       => 'submit',
+				'icon'       => '',
+				'hide_label' => false,
+			),
 			'method' => 'post',
 			'nonce'  => 'flzest_admin_action',
 			'hidden' => array( 'appointment_empty[id]' => $appointment->id ),
@@ -113,7 +141,7 @@ $flzest_appointment_row = static function ( FlzEstAppointment $appointment, int 
 				'hide_label' => true,
 				'attrs' => array( 'name' => 'submit' ),
 			),
-			'extra_actions' => $clear_action,
+				'extra_actions' => $bulk_selection . $confirmation_action . $clear_action,
 		)
 	);
 };
@@ -124,6 +152,9 @@ $flzest_appointment_row = static function ( FlzEstAppointment $appointment, int 
 	<?php if ( ! empty( $appointment_csv_notice ) ) : ?>
 		<?php echo $flzest_ui->notice( $appointment_csv_notice['message'], $appointment_csv_notice['type'] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Renderer escaped die Notice. ?>
 	<?php endif; ?>
+		<?php if ( ! empty( $appointment_bulk_notice ) ) : ?>
+			<?php echo $flzest_ui->notice( $appointment_bulk_notice['message'], $appointment_bulk_notice['type'] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Renderer escaped die Notice. ?>
+		<?php endif; ?>
 	<?php if ( $appointment_csv_stage_ready ) : ?>
 		<?php echo $flzest_ui->form_start( array( 'method' => 'post', 'nonce' => 'flzest_admin_action', 'hidden' => array( 'confirm_csv_import' => '1' ) ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Renderer escaped das Formular. ?>
 			<?php echo $flzest_ui->button_save( array( 'label' => 'Geprüfte Termin-CSV jetzt importieren', 'hide_label' => false, 'confirm' => 'Die geprüfte Termin-CSV jetzt importieren? Die Daten werden danach aus der Zwischenablage gelöscht.' ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Renderer escaped die Komponente. ?>
@@ -149,6 +180,12 @@ $flzest_appointment_row = static function ( FlzEstAppointment $appointment, int 
 			<?php echo $flzest_ui->form_start( array( 'method' => 'post', 'nonce' => 'flzest_admin_action' ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Renderer escaped das Formular. ?>
 				<?php echo $flzest_ui->button_reset( array( 'label' => 'Neuen Elternsprechtag vorbereiten', 'confirm' => 'Achtung! Sie sind dabei, alle Buchungen zurückzusetzen. Ist das erwünscht?', 'attrs' => array( 'name' => 'newEST', 'id' => 'newEST' ) ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Renderer escaped die Komponente. ?>
 			<?php echo $flzest_ui->form_end(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Renderer escaped das Formularende. ?>
+				<?php echo $flzest_ui->form_start( array( 'method' => 'post', 'nonce' => 'flzest_admin_action', 'attrs' => array( 'id' => 'flzest-appointment-bulk-form' ) ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Renderer escaped das Formular. ?>
+					<p>
+						<?php echo $flzest_ui->button_save( array( 'label' => 'Markierte Buchungen bestätigen', 'type' => 'submit', 'confirm' => 'Alle markierten unbestätigten Buchungen jetzt bestätigen?', 'attrs' => array( 'name' => 'appointment_bulk_action', 'value' => 'confirm' ) ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Renderer escaped die Komponente. ?>
+						<?php echo $flzest_ui->button_delete( array( 'label' => 'Markierte Buchungen löschen', 'type' => 'submit', 'confirm' => 'Alle markierten unbestätigten Buchungen löschen? Die Termine werden wieder freigegeben.', 'attrs' => array( 'name' => 'appointment_bulk_action', 'value' => 'delete' ) ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Renderer escaped die Komponente. ?>
+					</p>
+				<?php echo $flzest_ui->form_end(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Renderer escaped das Formularende. ?>
 			<table id="appointmentTable" class="widefat striped flz-ui-admin-table flz-ui-admin-table--compact">
 				<thead>
 					<tr>
