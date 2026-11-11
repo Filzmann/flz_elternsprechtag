@@ -11,7 +11,7 @@ function flzest_mail_template_defaults(): array
 		'MailTeacherSubject' => 'Neue Buchung am {appointment_date}',
 		'MailTeacherBody' => "Hallo {teacher_salutation} {teacher_name},\n\nes gibt eine neue Buchung für den Elternsprechtag am {appointment_date}.\nBeginn: {start_time}\nEnde: {end_time}\n\nElternteil: {parent_salutation} {parent_name}\nSchüler*in: {student_name}\nKlasse: {student_class}",
 		'MailParentSubject' => 'Bitte Termin am {appointment_date} bestätigen',
-		'MailParentBody' => "Hallo {parent_salutation} {parent_name},\n\nSie haben am {appointment_date} einen Termin bei {teacher_salutation} {teacher_name} für {student_name} gebucht.\nBeginn: {start_time}\nEnde: {end_time}\n\nBitte bestätigen Sie den Termin über diesen Link:\n{confirmation_url}\n\nBeste Grüße\n{site_name}",
+		'MailParentBody' => "Hallo {parent_salutation} {parent_name},\n\nSie haben am {appointment_date} einen Termin bei {teacher_salutation} {teacher_name} für {student_name} gebucht.\nBeginn: {start_time}\nEnde: {end_time}\n\nBitte bestätigen Sie den Termin. Falls eine Darstellung nicht funktioniert, nutzen Sie eine der weiteren Möglichkeiten:\n\n{confirmation_link}\n\n{confirmation_button}\n\n{confirmation_url_copy}\n\nBeste Grüße\n{site_name}",
 		'MailUnconfirmedBookingWarningSubject' => 'Bitte Termin am {appointment_date} bestätigen',
 		'MailUnconfirmedBookingWarningBody' => "Hallo {parent_salutation} {parent_name},\n\nIhr Termin bei {teacher_salutation} {teacher_name} am {appointment_date} um {start_time} wurde noch nicht bestätigt. Bitte verwenden Sie den Bestätigungslink aus Ihrer Buchungsmail, damit der Termin erhalten bleibt.\n\nBeste Grüße\n{site_name}",
 		'MailUnconfirmedBookingReleasedSubject' => 'Ihr unbestätigter Termin wurde freigegeben',
@@ -35,7 +35,27 @@ function flzest_mail_template_placeholders(): array
 		'start_time',
 		'end_time',
 		'confirmation_url',
+		'confirmation_link',
+		'confirmation_button',
+		'confirmation_url_copy',
 		'site_name',
+	);
+}
+
+/**
+ * Builds redundant HTML representations of the same confirmation URL.
+ *
+ * @return array<string,string>
+ */
+function flzest_confirmation_mail_placeholder_context( string $confirmation_url ): array
+{
+	$safe_url = esc_url( $confirmation_url );
+
+	return array(
+		'confirmation_url'      => $safe_url,
+		'confirmation_link'     => '<a href="' . $safe_url . '">Bestätigungslink öffnen</a>',
+		'confirmation_button'   => '<a href="' . $safe_url . '" style="display:inline-block;padding:12px 18px;background:#135e96;color:#ffffff;text-decoration:none;border-radius:4px;font-weight:bold;">Termin jetzt bestätigen</a>',
+		'confirmation_url_copy' => '<p><strong>Falls Sie nicht klicken können: Link kopieren und in die Browserzeile einfügen</strong><br><span style="display:inline-block;padding:10px;background:#f1f1f1;border:1px solid #cccccc;word-break:break-all;font-family:monospace;">' . $safe_url . '</span><br><small>Smartphone/Tablet: Link gedrückt halten und „Kopieren“ wählen. Desktop: Link markieren, mit Strg+C (Mac: Cmd+C) kopieren und in die Browserzeile einfügen.</small></p>',
 	);
 }
 

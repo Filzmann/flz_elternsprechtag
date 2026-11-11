@@ -26,7 +26,25 @@ final class FlzEstSchemaMigrator
 		if (version_compare($current_version, '2.0.0', '<')) {
 			self::migrate_legacy_tables();
 		}
+		if (version_compare($current_version, '2.5.1', '<')) {
+			self::reset_parent_mail_template();
+		}
 		update_option('flzest_db_version', \flz_est\FLZ_EST_DB_VERSION, false);
+	}
+
+	/**
+	 * Replaces the parent confirmation template with its agreed robust default.
+	 */
+	private static function reset_parent_mail_template(): void
+	{
+		$setting = FlzEstSetting::get_by_fields(array('name' => 'MailParentBody'));
+		$defaults = flzest_mail_template_defaults();
+		if (!$setting instanceof FlzEstSetting || !isset($defaults['MailParentBody'])) {
+			throw new RuntimeException('Die Eltern-Bestätigungsvorlage konnte nicht aktualisiert werden.');
+		}
+
+		$setting->value = $defaults['MailParentBody'];
+		$setting->save();
 	}
 
 	private static function migrate_legacy_tables(): void

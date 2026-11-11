@@ -41,7 +41,7 @@ $flzest_mail_template_groups = array(
             <?php endforeach; ?>
 		</div>
 		<h3>E-Mail-Vorlagen</h3>
-		<p class="description">Die Mails werden als HTML versendet. Verfügbare Platzhalter: <code>{teacher_salutation}</code>, <code>{teacher_name}</code>, <code>{parent_salutation}</code>, <code>{parent_name}</code>, <code>{student_name}</code>, <code>{student_class}</code>, <code>{appointment_date}</code>, <code>{start_time}</code>, <code>{end_time}</code>, <code>{confirmation_url}</code>, <code>{site_name}</code>.</p>
+		<p class="description">Die Mails werden als HTML versendet. Verfügbare Platzhalter: <code>{teacher_salutation}</code>, <code>{teacher_name}</code>, <code>{parent_salutation}</code>, <code>{parent_name}</code>, <code>{student_name}</code>, <code>{student_class}</code>, <code>{appointment_date}</code>, <code>{start_time}</code>, <code>{end_time}</code>, <code>{confirmation_url}</code>, <code>{confirmation_link}</code>, <code>{confirmation_button}</code>, <code>{confirmation_url_copy}</code>, <code>{site_name}</code>.</p>
 		<div class="flz-ui-card-grid flzest-settings-grid">
 			<?php foreach ( $flzest_mail_template_groups as $flzest_mail_recipient => $flzest_mail_fields ) : ?>
 				<div class="flzest-settings-mail-template">

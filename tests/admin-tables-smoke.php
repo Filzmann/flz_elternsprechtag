@@ -72,5 +72,10 @@ $appointment_template = file_get_contents( dirname( __DIR__ ) . '/templates/appo
 $assert( false !== strpos( $appointment_template, "'name' => 'confirmation_filter'" ), 'Die Auswahl für den Bestätigungsstatus fehlt.' );
 $assert( false !== strpos( $appointment_template, "'label'  => 'Buchung bestätigen'" ) && false !== strpos( $appointment_template, "'label'  => 'Termin leeren'" ), 'Die Textbeschriftungen für die Terminaktionen fehlen.' );
 $assert( 2 === preg_match_all( "/'icon'\\s*=>\\s*'',\\s*'hide_label'\\s*=>\\s*false/", $appointment_template ), 'Terminaktionen müssen sichtbare Textbuttons ohne Icons sein.' );
+$assert(
+	1 === preg_match_all( "/button_save\\( array\\( 'label' => 'Markierte Buchungen bestätigen'.*?'hide_label' => false.*?'name' => 'appointment_bulk_action', 'value' => 'confirm'/s", $appointment_template )
+		&& 1 === preg_match_all( "/button_delete\\( array\\( 'label' => 'Markierte Buchungen löschen'.*?'hide_label' => false.*?'name' => 'appointment_bulk_action', 'value' => 'delete'/s", $appointment_template ),
+	'Sammelaktionen müssen sichtbare, beschriftete Textbuttons bleiben.'
+);
 
 echo "OK: flz_elternsprechtag admin tables contract smoke test\n";
