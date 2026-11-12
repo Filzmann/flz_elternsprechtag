@@ -207,7 +207,7 @@ function sendMails( FlzEstAppointment $selected ): void {
 		'appointment_date'   => esc_html( wp_date( 'd.m.y', $selected->start ) ),
 		'start_time'         => esc_html( wp_date( 'H:i', $selected->start ) ),
 		'end_time'           => esc_html( wp_date( 'H:i', $selected->end ) ),
-		'confirmation_url'   => esc_url( $confirmation_url ),
+		...flzest_confirmation_mail_placeholder_context( $confirmation_url ),
 		'site_name'          => esc_html( $site_name ),
 	);
 	$headers = array(
@@ -267,7 +267,7 @@ function flzest_send_unconfirmed_booking_lifecycle_mail( FlzEstAppointment $appo
 		'appointment_date'   => esc_html( wp_date( 'd.m.y', $appointment->start ) ),
 		'start_time'         => esc_html( wp_date( 'H:i', $appointment->start ) ),
 		'end_time'           => esc_html( wp_date( 'H:i', $appointment->end ) ),
-		'confirmation_url'   => '',
+		...flzest_confirmation_mail_placeholder_context( '' ),
 		'site_name'          => esc_html( $site_name ),
 	);
 	$subject = flzest_render_mail_template( FlzEstSetting::get_value_by_name( $subject_setting ), $context );

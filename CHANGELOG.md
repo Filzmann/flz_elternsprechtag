@@ -6,6 +6,17 @@ ergänzt.
 
 ## Unreleased
 
+## 1.2.0-rc.16
+
+- Eltern-Bestätigungsmails enthalten jetzt standardmäßig denselben
+  Bestätigungsweg als Link, als deutlich beschrifteten Button und als
+  kopierbares URL-Feld mit Hinweisen für Smartphone, Tablet und Desktop.
+- Die neuen Platzhalter `{confirmation_link}`, `{confirmation_button}` und
+  `{confirmation_url_copy}` stehen in den Mailvorlagen bereit. Beim Upgrade
+  auf Datenbankversion 2.5.1 wird die Elternvorlage einmalig auf diesen
+  freigegebenen Standard gesetzt.
+- Sammelaktionen in der Terminverwaltung behalten sichtbare Textbeschriftungen.
+
 ## 1.2.0-rc.15
 
 - Buchungs-E-Mails enthalten nun standardmäßig eine HTML- und eine

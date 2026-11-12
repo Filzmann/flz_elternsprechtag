@@ -285,7 +285,9 @@ function flzest_apply_appointment_csv_import_plan( array $plan ): void {
  */
 function flzest_plan_appointment_csv_import( array $appointment_rows ): array {
 	$existing = array();
+	$existing_by_uuid = array();
 	foreach ( FlzEstAppointment::get_all_by() as $appointment ) {
+		if ( ! empty( $appointment->record_uuid ) ) { $existing_by_uuid[$appointment->record_uuid] = $appointment; }
 		if ( ! $appointment->teacher instanceof FlzEstTeacher ) {
 			throw new UnexpectedValueException( 'Ein vorhandener Termin besitzt keine gültige Lehrkraftreferenz.' );
 		}
@@ -301,14 +303,16 @@ function flzest_plan_appointment_csv_import( array $appointment_rows ): array {
 	$free = 0;
 	foreach ( $appointment_rows as $row ) {
 		$key = $row['teacher_email'] . '|' . (string) $row['start'];
-		if ( ! isset( $existing[ $key ] ) ) {
+		$uuid = $row['record_uuid'] ?? '';
+		$appointment = '' !== $uuid ? ( $existing_by_uuid[$uuid] ?? null ) : ( $existing[$key] ?? null );
+		if ( ! $appointment instanceof FlzEstAppointment || ! isset( $existing[$key] ) || $existing[$key] !== $appointment ) {
 			throw new UnexpectedValueException( 'Die CSV referenziert einen unbekannten Termin oder eine unbekannte Lehrkraft.' );
 		}
-		$appointment = $existing[ $key ];
 		if ( (int) $appointment->end !== $row['end'] ) {
 			throw new UnexpectedValueException( 'Die CSV-Endzeit stimmt nicht mit dem vorhandenen Termin überein.' );
 		}
 		unset( $existing[ $key ] );
+		unset( $existing_by_uuid[(string) $appointment->record_uuid] );
 
 		$parent = $row['booked'] ? new FlzEstParent( $row['parent'] ) : null;
 		$items[] = array(
@@ -339,6 +343,7 @@ function flzest_appointment_csv_proof_hash( array $appointment_rows ): string {
 			'|',
 			array(
 				(string) $appointment->id,
+				(string) $appointment->record_uuid,
 				(string) $appointment->teacher?->id,
 				(string) $appointment->start,
 				(string) $appointment->end,
@@ -507,6 +512,7 @@ function flzest_export_appointments_csv(): void
 			flzest_appointment_csv_header(),
 			array_map(
 				static fn( FlzEstAppointment $appointment ): array => array(
+					(string) ( $appointment->record_uuid ?? '' ),
 					$appointment->teacher?->email,
 					$appointment->start,
 					$appointment->end,
