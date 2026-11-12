@@ -89,6 +89,7 @@ function flzest_export_teachers_csv(): void
 			flzest_teacher_csv_header(),
 			array_map(
 				static fn( FlzEstTeacher $teacher ): array => array(
+					(string) ( $teacher->record_uuid ?? '' ),
 					$teacher->gender,
 					$teacher->name,
 					$teacher->firstName,
@@ -286,7 +287,9 @@ function flzest_delete_teacher_csv_candidates( array $teachers ): void {
  */
 function flzest_plan_teacher_csv_import( array $teacher_rows ): array {
 	$existing_by_email = array();
+	$existing_by_uuid = array();
 	foreach ( FlzEstTeacher::get_all_by() as $teacher ) {
+		if ( ! empty( $teacher->record_uuid ) ) { $existing_by_uuid[$teacher->record_uuid] = $teacher; }
 		$email = strtolower( (string) $teacher->email );
 		if ( isset( $existing_by_email[ $email ] ) ) {
 			throw new UnexpectedValueException(
@@ -302,9 +305,14 @@ function flzest_plan_teacher_csv_import( array $teacher_rows ): array {
 	$unchanged = 0;
 	foreach ( $teacher_rows as $teacher_data ) {
 		$email = $teacher_data['email'];
-		if ( isset( $existing_by_email[ $email ] ) ) {
-			$teacher = $existing_by_email[ $email ];
-			unset( $existing_by_email[ $email ] );
+		$uuid = $teacher_data['record_uuid'] ?? '';
+		$teacher = '' !== $uuid ? ( $existing_by_uuid[$uuid] ?? null ) : ( $existing_by_email[$email] ?? null );
+		if ( '' !== $uuid && isset( $existing_by_email[$email] ) && $existing_by_email[$email] !== $teacher ) {
+			throw new UnexpectedValueException( 'Die Datensatz-ID widerspricht einer vorhandenen Lehrkraft mit derselben E-Mail-Adresse.' );
+		}
+		if ( $teacher instanceof FlzEstTeacher ) {
+			unset( $existing_by_email[ strtolower( (string) $teacher->email ) ] );
+			unset( $existing_by_uuid[ (string) $teacher->record_uuid ] );
 			if ( flzest_teacher_csv_row_is_unchanged( $teacher, $teacher_data ) ) {
 				++$unchanged;
 				continue;
@@ -378,6 +386,7 @@ function flzest_teacher_csv_proof_hash( array $teacher_rows ): string {
 	$current_ids = array_map(
 		static fn( FlzEstTeacher $teacher ): array => array(
 			'id' => (int) $teacher->id,
+			'record_uuid' => (string) $teacher->record_uuid,
 			'gender' => (string) $teacher->gender,
 			'name' => (string) $teacher->name,
 			'firstName' => (string) $teacher->firstName,

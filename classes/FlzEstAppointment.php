@@ -23,10 +23,12 @@ class flzEstAppointment extends FlzWpdbObject
 	public int|null $confirmationExpiration = 0;
 	public string|null $confirmationToken=null   ;
 	public int $confirmationWarningSentAt = 0;
+	public ?string $record_uuid;
 
 	public function __construct(array $data=[])
 	{
 		parent::__construct(id:$data['id']??null);
+		$this->record_uuid = $data['record_uuid'] ?? null;
 		$this->start = $data['start']??null;
 		$this->end = $data['end']??null;
 		$this->teacher = $data['teacher'] ?? null;
@@ -64,6 +66,8 @@ class flzEstAppointment extends FlzWpdbObject
 				confirmationWarningSentAt INT(11) NOT NULL DEFAULT 0,
             teacher_id INT(11) NOT NULL,
             parent_id INT(11) NULL,
+			record_uuid char(36) NULL,
+			UNIQUE KEY record_uuid (record_uuid),
             PRIMARY KEY (id)
         )";
 	}
@@ -109,6 +113,7 @@ class flzEstAppointment extends FlzWpdbObject
 	 * @return array The prepared data for saving.
 	 */
 	protected function prepareDataForSaving(): array {
+		$this->record_uuid ??= wp_generate_uuid4();
 		if ( $this->teacher === null || $this->teacher->id === null || $this->start === null || $this->end === null ) {
 			throw FlzWpdbObjectsException::invalid_model_state(
 				static::class,
@@ -116,6 +121,7 @@ class flzEstAppointment extends FlzWpdbObject
 			);
 		}
 		return [
+			'record_uuid' => $this->record_uuid,
 			'start' => $this->start,
 			'end' => $this->end,
 			'teacher_id' => $this->teacher->id,

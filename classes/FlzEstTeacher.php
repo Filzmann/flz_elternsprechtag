@@ -6,10 +6,12 @@
 class FlzEstTeacher extends FlzPerson
 {
 	public ?string $registration_note;
+	public ?string $record_uuid;
 
 	public function __construct(array $data = []) {
 		parent::__construct($data);
 		$this->registration_note = isset( $data['registration_note'] ) ? (string) $data['registration_note'] : null;
+		$this->record_uuid = $data['record_uuid'] ?? null;
 	}
 
 	protected static function get_table_schema(): string {
@@ -20,6 +22,8 @@ class FlzEstTeacher extends FlzPerson
             gender CHAR NOT NULL,
             email VARCHAR(255) NOT NULL,
             registration_note longtext NULL,
+			record_uuid char(36) NULL,
+			UNIQUE KEY record_uuid (record_uuid),
             PRIMARY KEY (id))";
 	}
 
@@ -28,7 +32,9 @@ class FlzEstTeacher extends FlzPerson
 	}
 
 	protected function prepareDataForSaving(): array {
+		$this->record_uuid ??= wp_generate_uuid4();
 		return [
+			'record_uuid' => $this->record_uuid,
 			'name' => sanitize_text_field($this->name),
 			'firstName' => sanitize_text_field($this->firstName),
 			'gender' => sanitize_text_field($this->gender),

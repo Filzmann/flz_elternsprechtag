@@ -11,12 +11,12 @@ const FLZEST_CSV_VERSION = '1';
  * @return array<int,string>
  */
 function flzest_teacher_csv_header(): array {
-	return array( 'gender', 'last_name', 'first_name', 'email' );
+	return array( 'Datensatz-ID', 'gender', 'last_name', 'first_name', 'email' );
 }
 
 /** @return array<int,string> */
 function flzest_legacy_teacher_csv_header(): array {
-	return array( 'format_version', 'record_type', ...flzest_teacher_csv_header() );
+	return array( 'format_version', 'record_type', ...array_slice( flzest_teacher_csv_header(), 1 ) );
 }
 
 /**
@@ -24,6 +24,7 @@ function flzest_legacy_teacher_csv_header(): array {
  */
 function flzest_appointment_csv_header(): array {
 	return array(
+		'Datensatz-ID',
 		'teacher_email',
 		'start_timestamp',
 		'end_timestamp',
@@ -40,7 +41,7 @@ function flzest_appointment_csv_header(): array {
 
 /** @return array<int,string> */
 function flzest_legacy_appointment_csv_header(): array {
-	return array( 'format_version', 'record_type', ...flzest_appointment_csv_header() );
+	return array( 'format_version', 'record_type', ...array_slice( flzest_appointment_csv_header(), 1 ) );
 }
 
 function flzest_csv_cell( $value ): string {
@@ -74,11 +75,25 @@ function flzest_assert_csv_header( array $actual, array $expected ): void {
 function flzest_csv_metadata_offset( array $actual, array $current_header, array $legacy_header ): int {
 	try {
 		flzest_assert_csv_header( $actual, $current_header );
-		return 0;
+		return 1;
 	} catch ( UnexpectedValueException ) {
-		flzest_assert_csv_header( $actual, $legacy_header );
-		return 2;
+		try {
+			flzest_assert_csv_header( $actual, array_slice( $current_header, 1 ) );
+			return 0;
+		} catch ( UnexpectedValueException ) {
+			flzest_assert_csv_header( $actual, $legacy_header );
+			return 2;
+		}
 	}
+}
+
+function flzest_csv_record_uuid( array $row, int $offset, int $line ): string {
+	if ( 1 !== $offset ) { return ''; }
+	$uuid = strtolower( $row[0] );
+	if ( ! preg_match( '/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/', $uuid ) ) {
+		throw new UnexpectedValueException( 'CSV-Zeile ' . $line . ': Die Datensatz-ID ist ungültig.' );
+	}
+	return $uuid;
 }
 
 /**
@@ -97,12 +112,16 @@ function flzest_parse_teacher_csv( array $rows ): array {
 
 	$result = array();
 	$emails = array();
+	$uuids = array();
 	foreach ( $rows as $index => $raw_row ) {
 		$line = $index + 2;
 		if ( 4 + $metadata_offset !== count( $raw_row ) ) {
 			throw new UnexpectedValueException( 'Lehrkräfte-CSV Zeile ' . $line . ': Die Spaltenzahl ist ungültig.' );
 		}
 		$row = array_map( 'flzest_csv_cell', $raw_row );
+		$uuid = flzest_csv_record_uuid( $row, $metadata_offset, $line );
+		if ( '' !== $uuid && isset( $uuids[$uuid] ) ) { throw new UnexpectedValueException( 'Lehrkräfte-CSV Zeile ' . $line . ': Die Datensatz-ID kommt doppelt vor.' ); }
+		$uuids[$uuid] = true;
 		if ( 2 === $metadata_offset ) {
 			if ( FLZEST_CSV_VERSION !== $row[0] ) {
 				throw new UnexpectedValueException( 'Lehrkräfte-CSV Zeile ' . $line . ': Die Format-Version wird nicht unterstützt.' );
@@ -128,6 +147,7 @@ function flzest_parse_teacher_csv( array $rows ): array {
 		}
 		$emails[ $email ] = true;
 		$result[] = array(
+			'record_uuid' => $uuid,
 			'gender'    => $gender,
 			'name'      => $name,
 			'firstName' => sanitize_text_field( $row[ $metadata_offset + 2 ] ),
@@ -154,12 +174,16 @@ function flzest_parse_appointment_csv( array $rows ): array {
 
 	$result = array();
 	$keys = array();
+	$uuids = array();
 	foreach ( $rows as $index => $raw_row ) {
 		$line = $index + 2;
 		if ( 11 + $metadata_offset !== count( $raw_row ) ) {
 			throw new UnexpectedValueException( 'Termin-CSV Zeile ' . $line . ': Die Spaltenzahl ist ungültig.' );
 		}
 		$row = array_map( 'flzest_csv_cell', $raw_row );
+		$uuid = flzest_csv_record_uuid( $row, $metadata_offset, $line );
+		if ( '' !== $uuid && isset( $uuids[$uuid] ) ) { throw new UnexpectedValueException( 'Termin-CSV Zeile ' . $line . ': Die Datensatz-ID kommt doppelt vor.' ); }
+		$uuids[$uuid] = true;
 		if ( 2 === $metadata_offset ) {
 			if ( FLZEST_CSV_VERSION !== $row[0] ) {
 				throw new UnexpectedValueException( 'Termin-CSV Zeile ' . $line . ': Die Format-Version wird nicht unterstützt.' );
@@ -221,6 +245,7 @@ function flzest_parse_appointment_csv( array $rows ): array {
 		}
 
 		$result[] = array(
+			'record_uuid' => $uuid,
 			'teacher_email' => $teacher_email,
 			'start' => $start,
 			'end' => $end,

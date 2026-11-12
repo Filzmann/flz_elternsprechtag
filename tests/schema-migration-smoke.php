@@ -30,7 +30,7 @@ if (empty($header_version[1]) || ($constant_version[1] ?? null) !== $header_vers
 
 foreach (
 	array(
-		"const FLZ_EST_DB_VERSION = '2.5.1'" => $bootstrap,
+		"const FLZ_EST_DB_VERSION = '2.6.0'" => $bootstrap,
 		'FlzEstSetting::ensure_defaults()' => $migration,
 		'self::reset_parent_mail_template()' => $migration,
 		'version_compare($current_version, \'2.5.1\', \'<\')' => $migration,

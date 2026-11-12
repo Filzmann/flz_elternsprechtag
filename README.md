@@ -98,23 +98,20 @@ Beide Adminbereiche exportieren CSV direkt über Capability- und Nonce-
 geschützte Downloads. Ein Import ist erst möglich, wenn dieselbe unveränderte
 Datei innerhalb von 15 Minuten erfolgreich als Dry-Run geprüft wurde.
 
-- Lehrkräfte v1: `format_version; record_type; gender; last_name; first_name; email`.
-  Der Import aktualisiert oder ergänzt anhand der E-Mail-Adresse. Nicht
-  aufgeführte Bestandslehrkräfte werden nicht gelöscht.
-- Termine/Buchungen v1: `format_version; record_type; teacher_email;
+- Lehrkräfte: `Datensatz-ID; gender; last_name; first_name; email`.
+  Der Import ordnet Datensätze anhand der UUID zu. Bei älteren Dateien ohne
+  UUID erfolgt der Abgleich anhand der E-Mail-Adresse.
+- Termine/Buchungen: `Datensatz-ID; teacher_email;
   start_timestamp; end_timestamp; parent_gender; parent_last_name;
   parent_first_name; parent_email; student_name; student_class; gdpr_checked;
   confirmed`. Der Import verlangt einen vollständigen Snapshot sämtlicher
   vorhandener Slots und ersetzt die Buchungsdaten atomar.
 
-Bestätigungstoken und Ablaufzeiten gehören absichtlich nicht zum Export und
-werden beim Terminimport zurückgesetzt. CSV v1 verwendet Semikolon als
-Trennzeichen und Unix-Zeitstempel für verlustfreie Terminreferenzen.
-
-Unversionierte Altdateien und der frühere vier-spaltige Vorbelegungsimport
-werden bewusst nicht als v1 interpretiert. Sie werden ohne Datenänderung
-abgewiesen; vor einer Freigabe ist zu entscheiden, ob dafür ein eigener
-versionierter `prebooking`-Vertrag oder ein einmaliger Konverter benötigt wird.
+Die Datensatz-ID ist eine dauerhafte UUID und soll beim Bearbeiten der Datei
+unverändert bleiben. Widersprüche zu vorhandenen Datensätzen werden abgewiesen.
+Frühere Exportformate ohne UUID bleiben importierbar. Bestätigungstoken und
+Ablaufzeiten gehören nicht zum Export und werden beim Terminimport zurückgesetzt.
+Die Dateien verwenden Semikolon und Unix-Zeitstempel.
 
 ## Datenschutz
 

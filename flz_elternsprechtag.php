@@ -15,7 +15,7 @@ namespace flz_est;
 defined( 'ABSPATH' ) || exit;
 
 const FLZ_EST_VERSION = '1.2.0-rc.16';
-const FLZ_EST_DB_VERSION = '2.5.1';
+const FLZ_EST_DB_VERSION = '2.6.0';
 const FLZ_EST_MIN_WPDB_OBJECTS_VERSION = '2.1.0';
 const FLZ_EST_MIN_UI_COMPONENTS_VERSION = '0.2.1-rc.3';
 

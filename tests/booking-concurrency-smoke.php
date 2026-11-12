@@ -48,6 +48,7 @@ namespace flz_wpdb_objects {
 namespace {
 	// Exception-Texte sind ausschließlich lokale CLI-Testdiagnostik.
 	// phpcs:disable WordPress.Security.EscapeOutput.ExceptionNotEscaped
+	function wp_generate_uuid4(): string { return '550e8400-e29b-41d4-a716-446655440000'; }
 
 	class FlzPerson extends flz_wpdb_objects\FlzWpdbObject {
 		public function __construct( array $data = array() ) {

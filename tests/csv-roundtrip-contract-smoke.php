@@ -34,9 +34,9 @@ $assert_throws = static function ( callable $callback, string $expected_fragment
 
 $teacher_rows = array(
 	flzest_teacher_csv_header(),
-	array( 'f', 'Beispiel', 'Ada', 'ada.teacher@example.test' ),
+	array( '550e8400-e29b-41d4-a716-446655440000', 'f', 'Beispiel', 'Ada', 'ada.teacher@example.test' ),
 );
-$expected_teacher_header = array( 'gender', 'last_name', 'first_name', 'email' );
+$expected_teacher_header = array( 'Datensatz-ID', 'gender', 'last_name', 'first_name', 'email' );
 if ( flzest_teacher_csv_header() !== $expected_teacher_header ) {
 	throw new RuntimeException( 'Der Lehrkräfte-Export enthält weiterhin technische Metadatenspalten.' );
 }
@@ -44,6 +44,12 @@ $teachers = flzest_parse_teacher_csv( $teacher_rows );
 if ( 'ada.teacher@example.test' !== $teachers[0]['email'] ) {
 	throw new RuntimeException( 'Gültige Lehrkräftezeile wurde nicht verlustfrei gelesen.' );
 }
+if ( '550e8400-e29b-41d4-a716-446655440000' !== $teachers[0]['record_uuid'] ) { throw new RuntimeException( 'Die Lehrkraft-ID geht verloren.' ); }
+$previous_teacher_rows = array( array_slice( flzest_teacher_csv_header(), 1 ), array_slice( $teacher_rows[1], 1 ) );
+if ( '' !== flzest_parse_teacher_csv( $previous_teacher_rows )[0]['record_uuid'] ) { throw new RuntimeException( 'Das bisherige CSV-Format wird nicht gelesen.' ); }
+$invalid_uuid = $teacher_rows;
+$invalid_uuid[1][0] = 'ungueltig';
+$assert_throws( static fn() => flzest_parse_teacher_csv( $invalid_uuid ), 'Datensatz-ID' );
 
 $legacy_teacher_rows = array(
 	array( 'format_version', 'record_type', 'gender', 'last_name', 'first_name', 'email' ),
@@ -69,6 +75,7 @@ $assert_throws(
 $appointment_rows = array(
 	flzest_appointment_csv_header(),
 	array(
+		'550e8400-e29b-41d4-a716-446655440001',
 		'ada.teacher@example.test',
 		'1800000000',
 		'1800001200',
@@ -82,13 +89,14 @@ $appointment_rows = array(
 		'1',
 	),
 	array(
+		'550e8400-e29b-41d4-a716-446655440002',
 		'ada.teacher@example.test',
 		'1800001200',
 		'1800002400',
 		'', '', '', '', '', '', '', '0',
 	),
 );
-$expected_appointment_header = array( 'teacher_email', 'start_timestamp', 'end_timestamp', 'parent_gender', 'parent_last_name', 'parent_first_name', 'parent_email', 'student_name', 'student_class', 'gdpr_checked', 'confirmed' );
+$expected_appointment_header = array( 'Datensatz-ID', 'teacher_email', 'start_timestamp', 'end_timestamp', 'parent_gender', 'parent_last_name', 'parent_first_name', 'parent_email', 'student_name', 'student_class', 'gdpr_checked', 'confirmed' );
 if ( flzest_appointment_csv_header() !== $expected_appointment_header ) {
 	throw new RuntimeException( 'Der Termin-Export enthält weiterhin technische Metadatenspalten.' );
 }
@@ -98,14 +106,14 @@ if ( true !== $appointments[0]['booked'] || false !== $appointments[1]['booked']
 }
 
 $invalid_period = $appointment_rows;
-$invalid_period[1][2] = $invalid_period[1][1];
+$invalid_period[1][3] = $invalid_period[1][2];
 $assert_throws(
 	static fn() => flzest_parse_appointment_csv( $invalid_period ),
 	'Ende'
 );
 
 $incomplete_parent = $appointment_rows;
-$incomplete_parent[1][6] = '';
+$incomplete_parent[1][7] = '';
 $assert_throws(
 	static fn() => flzest_parse_appointment_csv( $incomplete_parent ),
 	'Eltern-E-Mail'
